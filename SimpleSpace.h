@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "TextSpace.h"
+
 struct VBIND {
     std::string vname;
     const void* binding;
