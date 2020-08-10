@@ -80,6 +80,33 @@ ExprPtr E(const ExprPtr& e1, const ExprPtr& e2) { return std::make_shared<Expr>(
 ExprPtr E(const ExprPtr& e1, const ExprPtr& e2, const ExprPtr& e3) { return std::make_shared<Expr>(e1, e2, e3); }
 ExprPtr V(const std::string &s) { return std::make_shared<Expr>(s, true); }
 
+class GroundedExpr;
+typedef std::shared_ptr<GroundedExpr> GroundedExprPtr;
+
+class GroundedExpr : public Expr {
+public:
+
+    using GroundedFunc = ExprPtr (*)(ExprPtr args);
+
+    GroundedExpr(std::string symb, GroundedFunc func) : Expr(symb), func(func) {}
+
+    bool isGrounded() const {
+        return true;
+    }
+
+    ExprPtr execute(ExprPtr args) {
+        return func(args);
+    }
+
+protected:
+    
+    GroundedFunc func;
+
+};
+
+ExprPtr G(std::string symb, GroundedExpr::GroundedFunc func) {
+    return std::make_shared<GroundedExpr>(symb, func);
+}
 
 MATCH match2_top_down(const ExprPtr& graph, Handle h) {
     MATCH m;
@@ -319,12 +346,16 @@ public:
 
         ExprPtr e_res = E("UNDEFINED");
         const std::string& op = pE->children[0]->get_symb();
-        if(op == "+" || op == "-" || op == "*" || op == "/") {
+        if (pE->children[0]->isGrounded()) {
+          GroundedExprPtr grounded_expr = std::static_pointer_cast<GroundedExpr>(pE->children[0]);
+          e_res = grounded_expr->execute(e);
+        } else
+        if(/*op == "+" || */op == "-" || op == "*" || op == "/") {
             // TODO: very simplistic now; check type (int/double); check if numbers
             int v1 = std::stoi(pE->children[1]->get_symb());
             int v2 = std::stoi(pE->children[2]->get_symb());
             int v = 0;
-            if(op == "+") v = v1 + v2;
+            //if(op == "+") v = v1 + v2;
             if(op == "-") v = v1 - v2;
             if(op == "*") v = v1 * v2;
             if(op == "/") v = v1 / v2;
