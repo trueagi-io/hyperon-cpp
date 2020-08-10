@@ -1,6 +1,7 @@
 #ifndef SIMPLE_SPACE_H
 #define SIMPLE_SPACE_H
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -17,42 +18,46 @@ struct MATCH {
 };
 
 // a simplistic tree structure for expressions
-class E {
+class Expr;
+typedef std::shared_ptr<Expr> ExprPtr;
+
+class Expr {
 friend class SimpleSpace;
 public:
-    E(): symb(""), bVariable(false) {}
-    E(const std::string &s, bool bVar = false): symb(s), bVariable(bVar) {}
-    /*E(const E& e1) { // interpreted as a copy-constructor
-        E e = new E();
+    Expr(): symb(""), bVariable(false) {}
+    Expr(const std::string &s, bool bVar = false): symb(s), bVariable(bVar) {}
+    /*Expr(const Expr& e1) { // interpreted as a copy-constructor
+        Expr e = new Expr();
         *e = e1;
         children.push_back(e);
     }*/
-    E(const E& e1, const E& e2) {
+    Expr(const ExprPtr& e1, const ExprPtr& e2) {
         children.push_back(e1);
         children.push_back(e2);
     }
-    E(const E& e1, const E& e2, const E& e3) {
+    Expr(const ExprPtr& e1, const ExprPtr& e2, const ExprPtr& e3) {
         children.push_back(e1);
         children.push_back(e2);
         children.push_back(e3);
     }
     bool isVar() const { return bVariable; }
+    virtual bool isGrounded() const { return false; }
     bool isExpr() const { return children.size() > 0; }
     bool isPlainExpr() const {
         if(!isExpr()) return false;
         for(auto it = children.begin(); it != children.end(); ++it) {
-            if(it->isExpr()) return false;
+            if((*it)->isExpr()) return false;
         }
         return true;
     }
-    const std::vector<E>& get_children() const { return children; }
+    const std::vector<ExprPtr>& get_children() const { return children; }
     const std::string& get_symb() const { return symb; }
     std::string to_string() const {
         std::string s = "";
         if(isExpr()) {
             s += "(";
             for(int i = 0; i < children.size(); i++) {
-                s += children[i].to_string();
+                s += children[i]->to_string();
                 if(i != children.size() - 1) s += " ";
             }
             s += ")";
@@ -65,19 +70,23 @@ public:
     
 protected:
     bool bVariable;
-    std::vector<E> children;
+    std::vector<ExprPtr> children;
     std::string symb;
 };
 
-E V(const std::string &s) { return E(s, true); }
+ExprPtr E() { return std::make_shared<Expr>(); }
+ExprPtr E(std::string symb, bool isVar = false) { return std::make_shared<Expr>(symb, isVar); }
+ExprPtr E(const ExprPtr& e1, const ExprPtr& e2) { return std::make_shared<Expr>(e1, e2); }
+ExprPtr E(const ExprPtr& e1, const ExprPtr& e2, const ExprPtr& e3) { return std::make_shared<Expr>(e1, e2, e3); }
+ExprPtr V(const std::string &s) { return std::make_shared<Expr>(s, true); }
 
 
-MATCH match2_top_down(const E& graph, Handle h) {
+MATCH match2_top_down(const ExprPtr& graph, Handle h) {
     MATCH m;
     m.bSuccess = false;
     Atom* pA = h.atom_ptr();
-    if(graph.isExpr() && pA->is_link()) {
-        const std::vector<E>& ch1 = graph.get_children();
+    if(graph->isExpr() && pA->is_link()) {
+        const std::vector<ExprPtr>& ch1 = graph->get_children();
         const HandleSeq& ch2 = pA->getOutgoingSet();
         //
         if(ch1.size() != ch2.size()) { return m; }
@@ -120,17 +129,17 @@ MATCH match2_top_down(const E& graph, Handle h) {
         }
         return m;
     }
-    if(!graph.isExpr() && pA->is_node()) {
-        if(!graph.isVar() && pA->get_type() != VARIABLE_NODE) {
+    if(!graph->isExpr() && pA->is_node()) {
+        if(!graph->isVar() && pA->get_type() != VARIABLE_NODE) {
             //std::cout << "comparing " << graph.get_symb() << " " << pA->get_name() << " " << (graph.get_symb() == pA->get_name()) << "\n";
-            m.bSuccess = graph.get_symb() == pA->get_name();
+            m.bSuccess = graph->get_symb() == pA->get_name();
             return m;
         }
     }
-    if(!graph.isVar() && pA->get_type() != VARIABLE_NODE) {
+    if(!graph->isVar() && pA->get_type() != VARIABLE_NODE) {
         return m;
     }
-    if(graph.isVar()) {
+    if(graph->isVar()) {
         // we ground query variable in kb subgraph even if the latter is variable by itself
         // TODO: or we should do the opposite: we should prioretize grounding of kb variables (or should 
         // keep symmetric groundings, but more commonly we'd like all kb variables be bound in contract
@@ -151,7 +160,7 @@ MATCH match2_top_down(const E& graph, Handle h) {
         // if we wish getting matches $a==$x, $y==(green $x), Sam==$x, which should be further checked for consistency
         // whether we will allow such queries or not and what to do with their results will depend on the language interpreter...
         VBIND vb;
-        vb.vname = graph.get_symb();
+        vb.vname = graph->get_symb();
         vb.binding = h.atom_ptr();
         m.query.push_back(vb);
         //std::cout << "-->Bound: " << vb.vname << " to " << h->to_short_string() << std::endl;
@@ -169,48 +178,48 @@ MATCH match2_top_down(const E& graph, Handle h) {
 #include <algorithm>
 class SimpleSpace: public SpaceAPI {
 protected:
-    E atom2e_subs(Atom* pA, const std::vector<VBIND>& kbb) {
+    ExprPtr atom2e_subs(Atom* pA, const std::vector<VBIND>& kbb) {
         if(pA->is_node()) {
             if(pA->get_type() != VARIABLE_NODE) {
                 return E(pA->get_name());
             } else {
                 for(int i = 0; i < kbb.size(); i++) {
                     if(kbb[i].vname == pA->get_name()) {
-                        return *(E*)(kbb[i].binding);
+                        return *(ExprPtr*)(kbb[i].binding);
                     }
                 }
                 throw std::runtime_error( "unbound kb variable " + pA->get_name() );
             }
         } else {
-            E e;
+            ExprPtr e = E();
             const HandleSeq& ch = pA->getOutgoingSet();
             for(int i = 0; i < ch.size(); i++) {
-                e.children.push_back(atom2e_subs(ch[i], kbb));
+                e->children.push_back(atom2e_subs(ch[i], kbb));
             }
             return e;
         }
     }
-    E atom2e_subs(Handle graph, const std::vector<VBIND>& kbb) {
+    ExprPtr atom2e_subs(Handle graph, const std::vector<VBIND>& kbb) {
         return atom2e_subs(graph.atom_ptr(), kbb);
     }
 
 public:
     SimpleSpace() {}
-    SimpleSpace(const E& graph) {
+    SimpleSpace(const ExprPtr& graph) {
         content.push_back(graph);
     }
-    void add_e(const E& graph) {
+    void add_e(const ExprPtr& graph) {
         content.push_back(graph);
     }
     std::string to_string() const {
         std::string s = "";
         for(auto it = content.begin(); it != content.end(); it++) {
-            s += it->to_string() + "\n";
+            s += (*it)->to_string() + "\n";
         }
         return s;
     }
     void add_native(const SpaceAPI* pGraph) override {
-        std::vector<E> to_add = ((SimpleSpace*)pGraph)->content;
+        std::vector<ExprPtr> to_add = ((SimpleSpace*)pGraph)->content;
         // we may want to deduplicate...
         std::copy(to_add.begin(), to_add.end(), std::back_inserter(content));
         //for(int i = 0; i < to_add.size(); i++) {
@@ -259,10 +268,10 @@ public:
                         std::cout << res.query[i].vname << " --> " << ((Atom*)res.query[i].binding)->to_short_string() << std::endl;
                     }
                     for(int i = 0; i < res.kb.size(); i++) {
-                        std::cout << ((E*)res.kb[i].binding)->get_symb() <<  " <-- " << res.kb[i].vname << std::endl;
+                        std::cout << (*(ExprPtr*)res.kb[i].binding)->get_symb() <<  " <-- " << res.kb[i].vname << std::endl;
                     }
-                    E e = atom2e_subs((*it)->getOutgoingSet()[0], res.kb);
-                    std::cout << "Substitution: " << e.to_string() << std::endl;
+                    ExprPtr e = atom2e_subs((*it)->getOutgoingSet()[0], res.kb);
+                    std::cout << "Substitution: " << e->to_string() << std::endl;
                     std::cout << std::endl;
                     pRes->add_e(e);
                 }
@@ -274,9 +283,9 @@ public:
     void interpret_step(SpaceAPI* ltm) {
         MySpace* ms = (MySpace*)ltm;
 
-        E& e = content.back();
-        if(!e.isExpr()) {
-            std::cout << "Result of evaluation: " << e.get_symb() << std::endl;
+        ExprPtr& e = content.back();
+        if(!e->isExpr()) {
+            std::cout << "Result of evaluation: " << e->get_symb() << std::endl;
             content.pop_back();
             // TODO: in fact, every expression should have a type like IO (), so it outputs its result somewhere by itself
             // here we output it "manually" and discard
@@ -286,18 +295,18 @@ public:
 
         // TODO: traversing the tree each time is not too good
         std::vector<int> stack_i;
-        std::vector<E *> stack_e;
-        E* pE = &e;
+        std::vector<ExprPtr> stack_e;
+        ExprPtr pE = e;
         int idx = 0;
         while(!pE->isPlainExpr()) {
             // TODO: we need to have some standard way to understand if we do call-by-value or call-by-name
             // this is hard-coded override of normal behavior: @repl-subgraph is evaluated before evaluating its children
             // this can be emulated via @quote (to be implemented), but @quote itself needs similar implementation...
-            if(pE->isExpr() && !pE->children[0].isExpr() && pE->children[0].get_symb() == "@repl-subgraph") { break; }
+            if(pE->isExpr() && !pE->children[0]->isExpr() && pE->children[0]->get_symb() == "@repl-subgraph") { break; }
             if(idx < pE->children.size()) { // works both for leaves and fully examined expressions
                 stack_i.push_back(idx);
                 stack_e.push_back(pE);
-                pE = &(pE->children[idx]);
+                pE = pE->children[idx];
                 idx = 0;
             } else {
                 pE = stack_e.back();
@@ -308,12 +317,12 @@ public:
         }
         std::cout << "First plain expr: " << pE->to_string() << std::endl;
 
-        E e_res = E("UNDEFINED");
-        const std::string& op = pE->children[0].get_symb();
+        ExprPtr e_res = E("UNDEFINED");
+        const std::string& op = pE->children[0]->get_symb();
         if(op == "+" || op == "-" || op == "*" || op == "/") {
             // TODO: very simplistic now; check type (int/double); check if numbers
-            int v1 = std::stoi(pE->children[1].get_symb());
-            int v2 = std::stoi(pE->children[2].get_symb());
+            int v1 = std::stoi(pE->children[1]->get_symb());
+            int v2 = std::stoi(pE->children[2]->get_symb());
             int v = 0;
             if(op == "+") v = v1 + v2;
             if(op == "-") v = v1 - v2;
@@ -322,8 +331,8 @@ public:
             e_res = E(std::to_string(v));
         } else
         if(op == "@move") {
-            int v1 = std::stoi(pE->children[1].get_symb());
-            int v2 = std::stoi(pE->children[2].get_symb());
+            int v1 = std::stoi(pE->children[1]->get_symb());
+            int v2 = std::stoi(pE->children[2]->get_symb());
             if(v1 < 0) v1 += content.size();
             if(v2 < 0) v2 += content.size();
             // TODO a subtle issue in the current implementation: if @move is target, we don't want to swap it,
@@ -336,11 +345,11 @@ public:
             return;
         } else
         if(op == "@repl-subgraph") {
-            E edup = pE->children[1];
+            ExprPtr edup = pE->children[1];
             content.push_back(edup);
             return;
         } else {
-            E run_e = E(E(":-"), *pE, V("|R|"));
+            ExprPtr run_e = E(E(":-"), pE, V("|R|"));
             //E(E(":-"), V("$$$"))
             IncomingSet members = ms->get_root()->getIncomingSet();
             for(auto it = members.begin(); it != members.end(); ++it) {
@@ -350,7 +359,7 @@ public:
                     /*for(int i = 0; i < res.query.size(); i++) {
                         std::cout << res.query[i].vname << " --> " << ((Atom*)res.query[i].binding)->to_short_string() << std::endl;
                     }*/
-                    //E e = atom2e_subs((*it)->getOutgoingSet()[0], res.kb);
+                    //ExprPtr e = atom2e_subs((*it)->getOutgoingSet()[0], res.kb);
                     e_res = atom2e_subs((Atom*)res.query[/*TODO we should search for |R| in fact*/0].binding, res.kb);
                     break; // TODO: we consider only first match, but we need to consider all to enable reasoning
                     // (but in this case we need to somehow resolve that if (f 0), (f n) should not be matched
@@ -360,7 +369,7 @@ public:
         }
         if(stack_e.size() == 0) {
             // removing target (new target will be inserted)
-            std::cout << "New Target: " << e_res.to_string() << std::endl;
+            std::cout << "New Target: " << e_res->to_string() << std::endl;
             content.pop_back();
             content.insert ( content.begin(), e_res );
         } else {
@@ -368,35 +377,35 @@ public:
             pE = stack_e.back();
             idx = stack_i.back();
             pE->children[idx] = e_res;
-            std::cout << "Modified target: " << e.to_string() << std::endl;
+            std::cout << "Modified target: " << e->to_string() << std::endl;
         }
     }
     
 protected:
-    Handle add_atoms_rec(MySpace& ms, const E& graph) const {
-        if (graph.isExpr()) {
+    Handle add_atoms_rec(MySpace& ms, const ExprPtr& graph) const {
+        if (graph->isExpr()) {
             HandleSeq outgoing;
-            for (auto e = graph.get_children().begin(); e != graph.get_children().end(); ++e) {
+            for (auto e = graph->get_children().begin(); e != graph->get_children().end(); ++e) {
                 outgoing.push_back(add_atoms_rec(ms, *e));
             }
             return ms.add_link(LIST_LINK, outgoing);
         } else {
-            return ms.add_node( graph.isVar() ? VARIABLE_NODE : CONCEPT_NODE, graph.get_symb() );
+            return ms.add_node( graph->isVar() ? VARIABLE_NODE : CONCEPT_NODE, graph->get_symb() );
         }
     }
 
 private:
-    std::vector<E> content;
+    std::vector<ExprPtr> content;
 };
 
 
 #if 0
 // beginning of an "efficient" implementation of graph matching
-    void match_graph(const E& graph) {
+    void match_graph(const ExprPtr& graph) {
         struct MatchTree {
             std::vector<MatchTree> children;
             MatchTree* pParent;
-            const E* pE;
+            const Expr* pE;
             Handle atom;
             int status;
         };
@@ -413,7 +422,7 @@ private:
             MatchTree* pNode = stack.back();
             stack.pop_back();
             if(pNode->pE->isExpr()) {
-                const std::vector<E>& ch = pNode->pE->get_children();
+                const std::vector<Expr>& ch = pNode->pE->get_children();
                 //std::cout << "In expr: " << pNode->pE->get_children().size() << std::endl;
                 for(int i = 0; i < ch.size(); i++) {
                     MatchTree t;
