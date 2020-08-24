@@ -72,13 +72,17 @@ Handle recursive_parse(std::string s, MySpace& ms)
                     outgoing.push_back(recursive_parse(s.substr(l, r-l), ms));
                 return ms.add_link(LIST_LINK, outgoing);
             } else {
-                bool bVar = false;
                 if(s[l] == '$') {
                     l++;
-                    bVar = true;
+                    return ms.add_node(VARIABLE_NODE, s.substr(l, r-l+1));
+                } else 
+                if(s[l] == '&') {
+                    l++;
+                    return ms.add_node(GROUNDED_SCHEMA_NODE, s.substr(l, r-l+1));
+                } else {
+                    //std::cout << "Token: " << s.substr(l, r-l+1) << std::endl;
+                    return ms.add_node(CONCEPT_NODE, s.substr(l, r-l+1));
                 }
-                //std::cout << "Token: " << s.substr(l, r-l+1) << std::endl;
-                return ms.add_node( bVar ? VARIABLE_NODE : CONCEPT_NODE, s.substr(l, r-l+1) );
             }
         }
     }

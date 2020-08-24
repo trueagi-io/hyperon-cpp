@@ -4,3 +4,4 @@ MACRO(ADD_CXXTEST)
 ENDMACRO()
 
 ADD_CXXTEST(GroundedSymbolTest)
+TARGET_LINK_LIBRARIES(GroundedSymbolTest dl)

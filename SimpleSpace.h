@@ -207,15 +207,18 @@ class SimpleSpace: public SpaceAPI {
 protected:
     ExprPtr atom2e_subs(Atom* pA, const std::vector<VBIND>& kbb) {
         if(pA->is_node()) {
-            if(pA->get_type() != VARIABLE_NODE) {
-                return E(pA->get_name());
-            } else {
+            if(pA->get_type() == VARIABLE_NODE) {
                 for(int i = 0; i < kbb.size(); i++) {
                     if(kbb[i].vname == pA->get_name()) {
                         return *(ExprPtr*)(kbb[i].binding);
                     }
                 }
                 throw std::runtime_error( "unbound kb variable " + pA->get_name() );
+            } else
+            if(pA->get_type() == GROUNDED_SCHEMA_NODE) {
+                throw std::runtime_error("importing GroundedSchemaNode from MySpace is not possible");
+            } else {
+                return E(pA->get_name());
             }
         } else {
             ExprPtr e = E();
