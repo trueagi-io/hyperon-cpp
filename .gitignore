@@ -1,2 +1,4 @@
 /build
 /.vim-project
+/compile_commands.json
+/.clangd

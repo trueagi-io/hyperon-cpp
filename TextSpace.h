@@ -3,7 +3,7 @@
 
 #include <string>
 #include "SpaceAPI.h"
-#include "MySpace.h"
+#include "ClassicSpace.h"
 
 class TextSpace: public SpaceAPI {
 public:
@@ -21,12 +21,12 @@ private:
     std::string code;
 };
 
-Handle recursive_parse(std::string s, MySpace& ms);
+Handle recursive_parse(std::string s, ClassicSpace& ms);
 
 void TextSpace::add_to(SpaceAPI& graph) const
 {
-    if(graph.get_type() == "MySpace") {
-        MySpace& ms = (MySpace&)graph;
+    if(graph.get_type() == "ClassicSpace") {
+        ClassicSpace& ms = (ClassicSpace&)graph;
         std::istringstream f(code);
         std::string s;
         while (getline(f, s)) {
@@ -41,7 +41,7 @@ void TextSpace::add_to(SpaceAPI& graph) const
     } else SpaceAPI::add_to(graph);
 }
 
-Handle recursive_parse(std::string s, MySpace& ms)
+Handle recursive_parse(std::string s, ClassicSpace& ms)
 {
     int r = s.length()-1;
     // not too much syntax checking...

@@ -1,5 +1,5 @@
 #include "TextSpace.h"
-#include "MySpace.h"
+#include "ClassicSpace.h"
 #include "SimpleSpace.h"
 
 // Two-way variable grounding
@@ -10,7 +10,7 @@ int main()
     ss.add_e(E(E(":-"), E(E("shiny"), V("x")), E(E("green"), V("x"))));
     ss.add_e(E(E(":-"), E(E("green"), V("x")), E(E("frog"), V("x"))));
     ss.add_e(E(E(":-"), E(V("f"), E("Sam")), E("Sam")));
-    MySpace ms;
+    ClassicSpace ms;
     ms.add_from_space(ss);
     SpaceAPI* match_res = SimpleSpace(E(E(":-"), E(E("frog"), E("Sam")), V("x"))).match_to(ms);
     TextSpace ts_match;
@@ -20,7 +20,7 @@ int main()
     TextSpace ftext;
     ftext.add_string("(:- (f 0) 1)");
     ftext.add_string("(:- (f $n) (* $n (f (- $n 1))))");
-    MySpace fms;
+    ClassicSpace fms;
     fms.add_from_space(ftext);
     SimpleSpace(E(E(":-"), E(E("f"), E("2")), V("x"))).match_to(fms);
 }

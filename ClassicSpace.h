@@ -1,5 +1,5 @@
-#ifndef MY_SPACE_H
-#define MY_SPACE_H
+#ifndef CLASSIC_SPACE_H
+#define CLASSIC_SPACE_H
 
 #include <string>
 
@@ -16,9 +16,9 @@
 
 using namespace opencog;
 
-class MySpace: public SpaceAPI {
+class ClassicSpace: public SpaceAPI {
 public:
-    MySpace() {
+    ClassicSpace() {
         as = new AtomSpace();
         root = as->add_node(CONCEPT_NODE, "@root");
     }
@@ -30,7 +30,7 @@ public:
     void add_native(const SpaceAPI* pGraph) override {
         throw std::runtime_error( "add_native is not implemented for " + get_type() );
     }
-    std::string get_type() const override { return "MySpace"; }
+    std::string get_type() const override { return "ClassicSpace"; }
 
     void print_content() {
         IncomingSet members = root->getIncomingSet();
@@ -46,4 +46,4 @@ private:
 };
 
 
-#endif // MY_SPACE_H
+#endif // CLASSIC_SPACE_H

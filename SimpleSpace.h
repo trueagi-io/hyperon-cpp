@@ -216,7 +216,7 @@ protected:
                 throw std::runtime_error( "unbound kb variable " + pA->get_name() );
             } else
             if(pA->get_type() == GROUNDED_SCHEMA_NODE) {
-                throw std::runtime_error("importing GroundedSchemaNode from MySpace is not possible");
+                throw std::runtime_error("importing GroundedSchemaNode from ClassicSpace is not possible");
             } else {
                 return E(pA->get_name());
             }
@@ -261,8 +261,8 @@ public:
         if(graph.get_type() == "TextSpace") {
             ((TextSpace&)graph).add_string(to_string());
         } else
-        if(graph.get_type() == "MySpace") {
-            MySpace& ms = (MySpace&)graph;
+        if(graph.get_type() == "ClassicSpace") {
+            ClassicSpace& ms = (ClassicSpace&)graph;
             for(auto it = content.begin(); it != content.end(); ++it) {
                 HandleSeq hs;
                 hs.push_back(add_atoms_rec(ms, *it));
@@ -273,15 +273,15 @@ public:
     }
     SpaceAPI* match_to(SpaceAPI& space) override {
         // Well, it is a concrete pattern matching for Atomspace... It could be made as complex as the real Pattern Matching...
-        // It may seem that we should implement it in MySpace. This would require some additional transformation and wrapping,
+        // It may seem that we should implement it in ClassicSpace. This would require some additional transformation and wrapping,
         // but maybe it's not a large evil. On the other hand, we separated the container itself (Atomspace with its
         // specific deduplication and incoming/outgoing set representation) and pattern matching over it.
         // Maybe more explicit separation would be better?..
-        if (space.get_type() != "MySpace") {
+        if (space.get_type() != "ClassicSpace") {
             return SpaceAPI::match_to(space);
         }
         SimpleSpace* pRes = new SimpleSpace();
-        MySpace& ms = (MySpace&)space;
+        ClassicSpace& ms = (ClassicSpace&)space;
         // How should we treat the space as query?
         // Is it just a set of queries to be processed independently like here?
         // Or should it be treated as a holistic graph to be matched at once?
@@ -311,7 +311,7 @@ public:
     }
     
     void interpret_step(SpaceAPI* ltm) {
-        MySpace* ms = (MySpace*)ltm;
+        ClassicSpace* ms = (ClassicSpace*)ltm;
 
         ExprPtr& e = content.back();
         if(!e->isExpr()) {
@@ -416,7 +416,7 @@ public:
     }
     
 protected:
-    Handle add_atoms_rec(MySpace& ms, const ExprPtr& graph) const {
+    Handle add_atoms_rec(ClassicSpace& ms, const ExprPtr& graph) const {
         if (graph->isExpr()) {
             HandleSeq outgoing;
             for (auto e = graph->get_children().begin(); e != graph->get_children().end(); ++e) {

@@ -1,7 +1,7 @@
 #include <opencog/atoms/atom_types/atom_names.h>
 
 #include "TextSpace.h"
-#include "MySpace.h"
+#include "ClassicSpace.h"
 #include "SimpleSpace.h"
 
 using namespace opencog;
@@ -20,7 +20,7 @@ class GroundedSymbolTest : public CxxTest::TestSuite {
 public:
 
     void test_plus() {
-        MySpace kb;
+        ClassicSpace kb;
         SimpleSpace program;
         program.add_e(E(G("+", &plus), E("1"), E("2")));
         program.interpret_step(&kb);
@@ -31,7 +31,7 @@ public:
         TextSpace text;
         text.add_string("(:- (+ $a $b) (&lib:plus_as $a $b))");
 
-        MySpace kb;
+        ClassicSpace kb;
         kb.add_from_space(text);
         
         std::cout << "result: " << kb.get_root()->to_string() << std::endl;

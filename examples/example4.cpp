@@ -1,5 +1,5 @@
 #include "TextSpace.h"
-#include "MySpace.h"
+#include "ClassicSpace.h"
 #include "SimpleSpace.h"
 
 // Interpreting 2+1 targets with order control
@@ -8,7 +8,7 @@ int main()
     TextSpace ftext;
     ftext.add_string("(:- (f 0) 1)");
     ftext.add_string("(:- (f $n) (* $n (f (- $n 1))))");
-    MySpace fms;
+    ClassicSpace fms;
     fms.add_from_space(ftext);
 
     SimpleSpace targets;

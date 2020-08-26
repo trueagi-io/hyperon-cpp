@@ -1,5 +1,5 @@
 #include "TextSpace.h"
-#include "MySpace.h"
+#include "ClassicSpace.h"
 #include "SimpleSpace.h"
 
 // from space to space
@@ -13,10 +13,10 @@ int main()
     TextSpace ts;
     ts.add_from_space(ss);
     std::cout << "TextSpace content:" << ts.get_code() << std::endl;
-    MySpace ms;
-    // Why can't we fill MySpace directly? We can, but SimpleSpace provides just right interface:
+    ClassicSpace ms;
+    // Why can't we fill ClassicSpace directly? We can, but SimpleSpace provides just right interface:
     // it knows how to represent expressions of our simple language in Atomspace.
-    std::cout << "MySpace content:\n";
+    std::cout << "ClassicSpace content:\n";
     ms.add_from_space(ss);
     ms.print_content();
     std::cout << std::endl;
@@ -25,8 +25,8 @@ int main()
     ftext.add_string("(:- (f 0) 1)");
     ftext.add_string("(:- (f $n) (* $n (f (- $n 1))))");
     std::cout << "Initial TextSpace content:" << ftext.get_code() << "\n\n";
-    MySpace fms;
-    std::cout << "MySpace content:\n";
+    ClassicSpace fms;
+    std::cout << "ClassicSpace content:\n";
     fms.add_from_space(ftext);
     fms.print_content();
     SimpleSpace prog;
@@ -41,7 +41,7 @@ TextSpace content:
 (:- (green $x) (frog $x))
 (:- ($f Sam) Sam)
 
-MySpace content:
+ClassicSpace content:
 (ListLink (ConceptNode ":-") (ListLink (ConceptNode "frog") (ConceptNode "Sam")) (ConceptNode "T"))
 (ListLink (ConceptNode ":-") (ListLink (ConceptNode "shiny") (VariableNode "x")) (ListLink (ConceptNode "green") (VariableNode "x")))
 (ListLink (ConceptNode ":-") (ListLink (ConceptNode "green") (VariableNode "x")) (ListLink (ConceptNode "frog") (VariableNode "x")))
@@ -51,7 +51,7 @@ Initial TextSpace content:
 (:- (f 0) 1)
 (:- (f $n) (* $n (f (- $n 1))))
 
-MySpace content:
+ClassicSpace content:
 (ListLink (ConceptNode ":-") (ListLink (ConceptNode "f") (ConceptNode "0")) (ConceptNode "1"))
 (ListLink (ConceptNode ":-") (ListLink (ConceptNode "f") (VariableNode "n")) (ListLink (ConceptNode "*") (VariableNode "n") (ListLink (ConceptNode "f") (ListLink (ConceptNode "-") (VariableNode "n") (ConceptNode "1")))))
 
