@@ -55,16 +55,6 @@ private:
     std::string symbol;
 };
 
-class GroundedExpr : public SymbolExpr {
-public:
-    GroundedExpr(std::string symbol) : SymbolExpr(symbol) { }
-    Type get_type() const { return GROUNDED; }
-};
-
-ExprPtr G(std::string symbol) {
-    return std::make_shared<GroundedExpr>(symbol);
-}
-
 class CompositeExpr : public Expr {
 public:
     CompositeExpr(std::initializer_list<ExprPtr> children) : children(children) { }
@@ -100,24 +90,14 @@ using CompositeExprPtr = std::shared_ptr<CompositeExpr>;
 
 // Groundings
 
-class Grounding {
+class GroundedExpr : public Expr {
 public:
-    enum Type {
-        VALUE,
-        FUNC
-    };
-
-    virtual ~Grounding() { }
-    virtual Type get_type() const = 0;
+    virtual ~GroundedExpr() { }
+    Type get_type() const { return GROUNDED; }
+    virtual ExprPtr execute(ExprPtr args) const {
+        throw std::runtime_error("Operation not supported");
+    }
 };
-
-// Grounding is immutable but can be replaced by another grounding
-using GroundingPtr = std::shared_ptr<const Grounding>;
-
-std::string to_string(Grounding::Type type) {
-    static std::string names[] = { "VALUE", "FUNC" };
-    return names[type];
-}
 
 // Space
 
@@ -136,22 +116,9 @@ public:
         return TYPE;
     }
 
-    void add_grounded_symbol(std::string symbol, GroundingPtr value) {
-        grounding_by_symbol[symbol] = value;
-    }
-
-    GroundingPtr get_grounding(std::string symbol) const {
-        return grounding_by_symbol.at(symbol);
-    }
-
     void add_expr(ExprPtr expr) {
         content.push_back(expr);
     }
-
-    // TODO: How should we return results of the execution? At the moment they
-    // are put into current atomspace. Should we return new child atomspace
-    // instead?
-    ExprPtr execute(CompositeExprPtr expr);
 
     // TODO: Which operations should we add into SpaceAPI to make
     // interpret_step space implementation agnostic?
@@ -159,7 +126,6 @@ public:
 
 private:
 
-    std::map<std::string, GroundingPtr> grounding_by_symbol;
     std::vector<ExprPtr> content;
 };
 
@@ -203,7 +169,11 @@ ExprPtr GroundingSpace::interpret_step() {
     ExprPtr result = Expr::INVALID;
     ExprPtr op = plain_expr->get_children()[0];
     if (op->get_type() == Expr::GROUNDED) {
-         result = execute(plain_expr);
+        GroundedExpr const* func = static_cast<GroundedExpr const*>(op.get());
+        // TODO: How should we return results of the execution? At the moment they
+        // are put into current atomspace. Should we return new child atomspace
+        // instead?
+        result = func->execute(plain_expr);
     }
 
     if (plainExprResult.child_index == -1) {
@@ -213,33 +183,6 @@ ExprPtr GroundingSpace::interpret_step() {
     } else {
         plainExprResult.parent->get_children()[plainExprResult.child_index] = result;
         return plainExprResult.parent;
-    }
-}
-
-class Value : public Grounding {
-public:
-    virtual ~Value() { }
-    Type get_type() const { return VALUE; }
-};
-
-class Func : public Grounding {
-public:
-    virtual ExprPtr execute(GroundingSpace& space, ExprPtr args) const = 0;
-    Type get_type() const { return FUNC; }
-};
-
-ExprPtr GroundingSpace::execute(CompositeExprPtr expr) {
-    SymbolExpr const* op = static_cast<SymbolExpr const*>(expr->get_children()[0].get());
-    GroundingPtr grounding = grounding_by_symbol.at(op->get_symbol());
-    switch (grounding->get_type()) {
-    case Grounding::VALUE:
-        throw std::runtime_error("Cannot execute grounded value");
-    case Grounding::FUNC: {
-        Func const* func = static_cast<Func const*>(grounding.get());
-        return func->execute(*this, expr);
-    }
-    default:
-        throw std::logic_error("Unexpected Grounding::Type value: " + to_string(grounding->get_type()));
     }
 }
 
