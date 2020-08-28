@@ -3,13 +3,13 @@
 
 #include "GroundingSpace.h"
 
-class FloatValue : public GroundedExpr {
+class FloatAtom : public GroundedExpr {
 public:
-    FloatValue(float value) : value(value) {}
-    virtual ~FloatValue() { }
+    FloatAtom(float value) : value(value) {}
+    virtual ~FloatAtom() { }
     virtual bool operator==(Expr const& _other) const { 
         // TODO: it should be replaced by types?
-        FloatValue const* other = dynamic_cast<FloatValue const*>(&_other);
+        FloatAtom const* other = dynamic_cast<FloatAtom const*>(&_other);
         return other && other->value == value;
     }
     virtual std::string to_string() const { return std::to_string(value); }
@@ -18,18 +18,18 @@ private:
     float value;
 };
 
-class Plus : public GroundedExpr {
+class PlusAtom : public GroundedExpr {
 public:
-    virtual ~Plus() { }
+    virtual ~PlusAtom() { }
     virtual ExprPtr execute(ExprPtr _args) const {
         CompositeExprPtr args = std::dynamic_pointer_cast<CompositeExpr>(_args);
-        FloatValue const* a = dynamic_cast<FloatValue const*>(args->get_children()[1].get());
-        FloatValue const* b = dynamic_cast<FloatValue const*>(args->get_children()[2].get());
+        FloatAtom const* a = dynamic_cast<FloatAtom const*>(args->get_children()[1].get());
+        FloatAtom const* b = dynamic_cast<FloatAtom const*>(args->get_children()[2].get());
         float c = a->get() + b->get();
-        return std::make_shared<FloatValue>(c);
+        return std::make_shared<FloatAtom>(c);
     }
     virtual bool operator==(Expr const& _other) const { 
-        return dynamic_cast<Plus const*>(&_other);
+        return dynamic_cast<PlusAtom const*>(&_other);
     }
     virtual std::string to_string() const { return "+"; }
 };
@@ -39,10 +39,10 @@ public:
 
     void test_plus() {
         GroundingSpace kb;
-        kb.add_expr(C({std::make_shared<Plus>(), std::make_shared<FloatValue>(1), std::make_shared<FloatValue>(2)}));
+        kb.add_expr(C({std::make_shared<PlusAtom>(), std::make_shared<FloatAtom>(1), std::make_shared<FloatAtom>(2)}));
         ExprPtr result = kb.interpret_step();
         std::cout << "result: " << result->to_string() << std::endl;
-        TS_ASSERT(*result == *std::make_shared<FloatValue>(3));
+        TS_ASSERT(*result == *std::make_shared<FloatAtom>(3));
     }
 
 };
