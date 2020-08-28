@@ -50,7 +50,7 @@ public:
         SymbolExpr const* other = dynamic_cast<SymbolExpr const*>(&_other);
         return other && symbol == other->symbol;
     }
-    std::string to_string() const { return ::to_string(get_type()) + "(" + symbol + ")"; }
+    std::string to_string() const { return symbol; }
 private:
     std::string symbol;
 };
@@ -87,8 +87,6 @@ ExprPtr C(std::initializer_list<ExprPtr> children) {
 }
 
 using CompositeExprPtr = std::shared_ptr<CompositeExpr>;
-
-// Groundings
 
 class GroundedExpr : public Expr {
 public:
