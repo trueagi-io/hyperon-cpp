@@ -46,7 +46,7 @@ public:
     SymbolExpr(std::string symbol) : symbol(symbol) { }
     Type get_type() const { return SYMBOL; }
     std::string get_symbol() const { return symbol; }
-    virtual bool operator==(Expr const& _other) const { 
+    bool operator==(Expr const& _other) const { 
         SymbolExpr const* other = dynamic_cast<SymbolExpr const*>(&_other);
         return other && symbol == other->symbol;
     }
@@ -134,6 +134,7 @@ struct PlainExprResult {
     CompositeExprPtr parent;
     int child_index;
     CompositeExprPtr plain;
+    bool has_parent() { return child_index != -1; }
 };
 
 PlainExprResult find_plain_sub_expr(ExprPtr expr) {
@@ -145,7 +146,7 @@ PlainExprResult find_plain_sub_expr(ExprPtr expr) {
     for (int i = 0; i < children.size(); ++i) {
         PlainExprResult plain = find_plain_sub_expr(children[i]);
         if (plain.found) {
-            if (plain.child_index != -1) {
+            if (plain.has_parent()) {
                 return plain;
             } else {
                 return { true, composite, i, plain.plain };
@@ -174,7 +175,7 @@ ExprPtr GroundingSpace::interpret_step() {
         result = func->execute(plain_expr);
     }
 
-    if (plainExprResult.child_index == -1) {
+    if (!plainExprResult.has_parent()) {
         content.pop_back();
         content.push_back(result);
         return result;
