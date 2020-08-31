@@ -31,6 +31,7 @@ public:
     virtual ~Expr() { }
     virtual Type get_type() const = 0;
     virtual bool operator==(Expr const& other) const = 0;
+    virtual bool operator!=(Expr const& other) const { return !(*this == other); }
     virtual std::string to_string() const = 0;
 };
 
@@ -44,8 +45,9 @@ ExprPtr Expr::INVALID = std::shared_ptr<Expr>(nullptr);
 class SymbolExpr : public Expr {
 public:
     SymbolExpr(std::string symbol) : symbol(symbol) { }
-    Type get_type() const { return SYMBOL; }
     std::string get_symbol() const { return symbol; }
+
+    Type get_type() const { return SYMBOL; }
     bool operator==(Expr const& _other) const { 
         SymbolExpr const* other = dynamic_cast<SymbolExpr const*>(&_other);
         return other && symbol == other->symbol;
@@ -55,11 +57,17 @@ private:
     std::string symbol;
 };
 
+ExprPtr S(std::string symbol) {
+    return std::make_shared<SymbolExpr>(symbol);
+}
+
 class CompositeExpr : public Expr {
 public:
     CompositeExpr(std::initializer_list<ExprPtr> children) : children(children) { }
-    Type get_type() const { return COMPOSITE; }
+    CompositeExpr(std::vector<ExprPtr> children) : children(children) { }
     std::vector<ExprPtr>& get_children() { return children; }
+
+    Type get_type() const { return COMPOSITE; }
     bool operator==(Expr const& _other) const;
     std::string to_string() const;
 private:
@@ -71,30 +79,62 @@ bool CompositeExpr::operator==(Expr const& _other) const {
         return false;
     }
     CompositeExpr const& other = static_cast<CompositeExpr const&>(_other);
-    return children == other.children;
+    if (children.size() != other.children.size()) {
+        return false;
+    }
+    for (int i = 0; i < children.size(); ++i) {
+        if (*children.at(i) != *other.children.at(i)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::string CompositeExpr::to_string() const {
-    std::string str = "";
-    for (auto const& child : children) {
-        str += str + ", " + child->to_string();
+    std::string str = "(";
+    for (auto it = children.begin(); it != children.end(); ++it) {
+        str += (it == children.begin() ? "" : " ") + (*it)->to_string();
     }
-    return str;
+    return str + ")";
 }
 
 ExprPtr C(std::initializer_list<ExprPtr> children) {
     return std::make_shared<CompositeExpr>(children);
 }
 
+ExprPtr C(std::vector<ExprPtr> children) {
+    return std::make_shared<CompositeExpr>(children);
+}
+
 using CompositeExprPtr = std::shared_ptr<CompositeExpr>;
+
+class VariableExpr : public Expr {
+public:
+    VariableExpr(std::string name) : name(name) { }
+    std::string get_name() const { return name; }
+
+    Type get_type() const { return VARIABLE; }
+    bool operator==(Expr const& _other) const {
+        VariableExpr const* other = dynamic_cast<VariableExpr const*>(&_other);
+        return other && name == other->name;
+    }
+    std::string to_string() const { return "$" + name; }
+private:
+    std::string name;
+};
+
+ExprPtr V(std::string name) {
+    return std::make_shared<VariableExpr>(name);
+}
 
 class GroundedExpr : public Expr {
 public:
     virtual ~GroundedExpr() { }
-    Type get_type() const { return GROUNDED; }
     virtual ExprPtr execute(ExprPtr args) const {
         throw std::runtime_error("Operation not supported");
     }
+
+    Type get_type() const { return GROUNDED; }
 };
 
 // Space
@@ -106,13 +146,11 @@ public:
 
     virtual ~GroundingSpace() { }
 
-    virtual void add_native(const SpaceAPI* other) {
+    void add_native(const SpaceAPI* other) {
         throw std::logic_error("Method is not implemented");
     }
 
-    virtual std::string get_type() const {
-        return TYPE;
-    }
+    std::string get_type() const { return TYPE; }
 
     void add_expr(ExprPtr expr) {
         content.push_back(expr);
