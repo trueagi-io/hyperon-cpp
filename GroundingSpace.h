@@ -5,9 +5,9 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <map>
-#include <functional>
 #include <memory>
+#include <functional>
+#include <iostream>
 
 #include "SpaceAPI.h"
 
@@ -220,6 +220,119 @@ ExprPtr GroundingSpace::interpret_step() {
     } else {
         plainExprResult.parent->get_children()[plainExprResult.child_index] = result;
         return plainExprResult.parent;
+    }
+}
+
+// Text space
+
+class TextSpace : public SpaceAPI {
+public:
+
+    static std::string TYPE;
+
+    virtual ~TextSpace() { }
+
+    void add_to(SpaceAPI& space) const;
+
+    void add_native(const SpaceAPI* other) {
+        throw std::logic_error("Method is not implemented");
+    }
+
+    std::string get_type() const { return TYPE; }
+
+    void add_string(std::string str_expr) {
+        code.push_back(str_expr);
+    }
+
+private:
+    std::vector<std::string> code; 
+};
+
+std::string TextSpace::TYPE = "TextSpace";
+
+void skip_space(char const*& text) {
+    while (*text && std::isspace(*text)) {
+        ++text;
+    }
+}
+
+std::string next_token(char const*& text) {
+    char const* start = text;
+    // FIXME: what can we do for strings with spaces inside them?
+    while (*text && !std::isspace(*text) && *text != '(' && *text != ')') {
+        ++text;
+    }
+    return std::string(start, text);
+}
+
+std::string show_position(char const* text, char const* pos) {
+    return std::string(text, pos) + ">" + std::string(1, *pos) + "<" +
+            (*pos ? std::string(pos + 1) : "");
+}
+
+void parse_error(char const* text, char const* pos, std::string message) {
+    throw std::runtime_error(message + "\n" + show_position(text, pos));
+}
+
+struct ParseResult {
+    ExprPtr expr;
+    bool is_eof;
+};
+
+ParseResult  recursive_parse(char const* text, char const*& pos) {
+    std::clog << "recursive_parse: " << show_position(text, pos) << std::endl;
+    skip_space(pos);
+    switch (*pos) {
+        case '$':
+            ++pos;
+            return { V(next_token(pos)), false };
+        case '(':
+            {
+                ++pos;
+                std::vector<ExprPtr> children;
+                while (true) {
+                    skip_space(pos);
+                    if (*pos == ')') {
+                        ++pos;
+                        break;
+                    }
+                    ParseResult result = recursive_parse(text, pos);
+                    if (result.is_eof) {
+                        parse_error(text, pos, "Unexpected end of expression");
+                    }
+                    children.push_back(result.expr);
+                }
+                ExprPtr expr = C(children);
+                return { expr, false };
+            }
+        case '\0':
+            return { Expr::INVALID, true };
+        default:
+            std::string token = next_token(pos);
+            return { S(token), false };
+    };
+}
+
+void parse(std::string text, std::function<void(ExprPtr)> add) {
+    char const* c_str = text.c_str();
+    char const* pos = c_str;
+    while (true) {
+        ParseResult result = recursive_parse(c_str, pos);
+        if (result.is_eof) {
+            break;
+        }
+        add(result.expr);
+    }
+}
+
+void TextSpace::add_to(SpaceAPI& _space) const {
+    if (_space.get_type() == GroundingSpace::TYPE) {
+        GroundingSpace& space = static_cast<GroundingSpace&>(_space);
+        for (auto const& str_expr : code) {
+            parse(str_expr, [&space] (ExprPtr expr) -> void { space.add_expr(expr); });
+        }
+    } else {
+        SpaceAPI::add_to(_space);
     }
 }
 
