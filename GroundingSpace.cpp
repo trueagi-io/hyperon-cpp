@@ -123,7 +123,9 @@ static void skip_space(char const*& text) {
 
 static std::string next_token(char const*& text) {
     char const* start = text;
-    // FIXME: what can we do for strings with spaces inside them?
+    // TODO: this doesn't work for string in quotes with spaces inside them,
+    // to fix it we should made TokenDescr more complex and use list of token
+    // descriptions to build a parser
     while (*text && !std::isspace(*text) && *text != '(' && *text != ')') {
         ++text;
     }
