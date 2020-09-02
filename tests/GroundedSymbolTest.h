@@ -10,6 +10,13 @@ public:
     std::string to_string() const { return std::to_string(get()) + "f"; }
 };
 
+class StringAtom : public ValueAtom<std::string> {
+public:
+    StringAtom(std::string value) : ValueAtom(value) {}
+    virtual ~StringAtom() {}
+    std::string to_string() const { return "\"" + get() + "\"s"; }
+};
+
 class PlusAtom : public GroundedExpr {
 public:
     virtual ~PlusAtom() { }
@@ -57,4 +64,34 @@ public:
         TS_ASSERT(*result == FloatAtom(3));
     }
 
+    // FIXME: test is not passed yet
+    void _test_two_grounded_types() {
+        TextSpace text_kb;
+        text_kb.register_grounded_type(std::regex("\\d+(\\.\\d+)?"),
+                [] (std::string str) -> GroundedExprPtr {
+                    return std::make_shared<FloatAtom>(std::stof(str));    
+                });
+        text_kb.register_grounded_type(std::regex("\"[^\"]*\""),
+                [] (std::string str) -> GroundedExprPtr {
+                    return std::make_shared<StringAtom>(str.substr(1, str.size() - 2));    
+                });
+        text_kb.register_grounded_type(std::regex("\\+"),
+                [] (std::string str) -> GroundedExprPtr {
+                    return std::make_shared<PlusAtom>();    
+                });
+        text_kb.add_string("(= $a 1.0)");
+        text_kb.add_string("(= $x (+ $a 2.0))");
+        text_kb.add_string("(= $b \"1\")");
+        text_kb.add_string("(= $y (+ $b \"2\"))");
+        GroundingSpace kb;
+        kb.add_from_space(text_kb);
+
+        GroundingSpace targets;
+        targets.add_expr(V("x"));
+        targets.add_expr(V("y"));
+        ExprPtr y = targets.interpret_step(kb);
+        TS_ASSERT(*y == StringAtom("12"));
+        ExprPtr x = targets.interpret_step(kb);
+        TS_ASSERT(*x == FloatAtom(3));
+    }
 };
