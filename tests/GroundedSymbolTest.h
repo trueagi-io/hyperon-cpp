@@ -1,48 +1,60 @@
 #include <memory>
-#include <opencog/atoms/atom_types/atom_names.h>
+#include <iostream>
 
 #include "GroundingSpace.h"
 
-class FloatAtom : public GroundedExpr {
+class FloatAtom : public ValueAtom<float> {
 public:
-    FloatAtom(float value) : value(value) {}
-    virtual ~FloatAtom() { }
-    virtual bool operator==(Expr const& _other) const { 
-        // TODO: it should be replaced by types?
-        FloatAtom const* other = dynamic_cast<FloatAtom const*>(&_other);
-        return other && other->value == value;
-    }
-    virtual std::string to_string() const { return std::to_string(value); }
-    float get() const { return value; }
-private:
-    float value;
+    FloatAtom(float value) : ValueAtom(value) {}
+    virtual ~FloatAtom() {}
+    std::string to_string() const { return std::to_string(get()) + "f"; }
 };
 
 class PlusAtom : public GroundedExpr {
 public:
     virtual ~PlusAtom() { }
-    virtual ExprPtr execute(ExprPtr _args) const {
+    ExprPtr execute(ExprPtr _args) const {
         CompositeExprPtr args = std::dynamic_pointer_cast<CompositeExpr>(_args);
         FloatAtom const* a = dynamic_cast<FloatAtom const*>(args->get_children()[1].get());
         FloatAtom const* b = dynamic_cast<FloatAtom const*>(args->get_children()[2].get());
         float c = a->get() + b->get();
         return std::make_shared<FloatAtom>(c);
     }
-    virtual bool operator==(Expr const& _other) const { 
+    bool operator==(Expr const& _other) const { 
         return dynamic_cast<PlusAtom const*>(&_other);
     }
-    virtual std::string to_string() const { return "+"; }
+    std::string to_string() const { return "+"; }
 };
 
 class GroundedSymbolTest : public CxxTest::TestSuite {
 public:
 
-    void test_plus() {
-        GroundingSpace kb;
-        kb.add_expr(C({std::make_shared<PlusAtom>(), std::make_shared<FloatAtom>(1), std::make_shared<FloatAtom>(2)}));
-        ExprPtr result = kb.interpret_step();
-        std::cout << "result: " << result->to_string() << std::endl;
-        TS_ASSERT(*result == *std::make_shared<FloatAtom>(3));
+    void test_simple_grounded_operation() {
+        GroundingSpace empty_kb;
+        GroundingSpace targets;
+        targets.add_expr(C({std::make_shared<PlusAtom>(), std::make_shared<FloatAtom>(1), std::make_shared<FloatAtom>(2)}));
+        ExprPtr result = targets.interpret_step(empty_kb);
+        TS_ASSERT(*result == FloatAtom(3));
+    }
+
+    void test_adding_new_grounded_types() {
+        TextSpace text_kb;
+        text_kb.register_grounded_type(std::regex("\\d+(\\.\\d+)?"),
+                [] (std::string str) -> GroundedExprPtr {
+                    return std::make_shared<FloatAtom>(std::stof(str));    
+                });
+        text_kb.register_grounded_type(std::regex("\\+"),
+                [] (std::string str) -> GroundedExprPtr {
+                    return std::make_shared<PlusAtom>();    
+                });
+        text_kb.add_string("(+ 2.0 1.0)");
+        GroundingSpace targets;
+        targets.add_from_space(text_kb);
+
+        GroundingSpace empty_kb;
+        ExprPtr result = targets.interpret_step(empty_kb);
+        
+        TS_ASSERT(*result == FloatAtom(3));
     }
 
 };

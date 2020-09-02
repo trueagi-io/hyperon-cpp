@@ -183,7 +183,7 @@ public:
 
     // TODO: Which operations should we add into SpaceAPI to make
     // interpret_step space implementation agnostic?
-    ExprPtr interpret_step();
+    ExprPtr interpret_step(SpaceAPI const& kb);
 
     bool operator==(SpaceAPI const& space) const;
     bool operator!=(SpaceAPI const& other) const { return !(*this == other); }
@@ -223,7 +223,13 @@ PlainExprResult find_plain_sub_expr(ExprPtr expr) {
     return { true, composite, -1, composite };
 }
 
-ExprPtr GroundingSpace::interpret_step() {
+ExprPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
+    if (_kb.get_type() != GroundingSpace::TYPE) {
+        throw std::runtime_error("Only " + GroundingSpace::TYPE +
+                " knowledge bases are supported");
+    }
+    GroundingSpace const& kb = static_cast<GroundingSpace const&>(_kb);
+
     ExprPtr expr = content.back();
     if (expr->get_type() != Expr::COMPOSITE) {
         content.pop_back();
