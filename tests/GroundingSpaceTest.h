@@ -1,3 +1,5 @@
+#include <cxxtest/TestSuite.h>
+
 #include "GroundingSpace.h"
 
 class GroundingSpaceTest : public CxxTest::TestSuite {

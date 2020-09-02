@@ -1,3 +1,5 @@
+#include <cxxtest/TestSuite.h>
+
 #include "GroundingSpace.h"
 #include "TextSpace.h"
 
@@ -13,9 +15,9 @@ public:
 
     void test_parse_variable() {
         TextSpace text;
-        GroundingSpace space;
-
         text.add_string("$a");
+
+        GroundingSpace space;
         space.add_from_space(text);
 
         GroundingSpace expected;
@@ -25,9 +27,9 @@ public:
 
     void test_parse_plain_expression() {
         TextSpace text;
-        GroundingSpace space;
-
         text.add_string("(= $a 1.0)");
+
+        GroundingSpace space;
         space.add_from_space(text);
 
         GroundingSpace expected;
@@ -37,9 +39,9 @@ public:
 
     void test_parse_nested_expression() {
         TextSpace text;
-        GroundingSpace space;
-
         text.add_string("(= $a (+ 1.0 2.0))");
+
+        GroundingSpace space;
         space.add_from_space(text);
 
         GroundingSpace expected;
@@ -49,13 +51,13 @@ public:
 
     void test_parse_grounded_expression() {
         TextSpace text;
-        GroundingSpace space;
         text.register_token(std::regex("\\d+(\\.\\d+)?"),
                 [] (std::string str) -> GroundedExprPtr {
                     return std::make_shared<FloatAtom>(std::stof(str));    
                 });
-
         text.add_string("(+ 1.0 2.0)");
+        
+        GroundingSpace space;
         space.add_from_space(text);
 
         GroundingSpace expected;

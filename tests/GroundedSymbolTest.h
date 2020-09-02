@@ -1,3 +1,4 @@
+#include <cxxtest/TestSuite.h>
 #include <memory>
 #include <iostream>
 
