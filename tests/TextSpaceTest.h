@@ -1,4 +1,5 @@
 #include "GroundingSpace.h"
+#include "TextSpace.h"
 
 class FloatAtom : public ValueAtom<float> {
 public:
