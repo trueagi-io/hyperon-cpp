@@ -139,13 +139,13 @@ static void parse_error(char const* text, char const* pos, std::string message) 
     throw std::runtime_error(message + "\n" + show_position(text, pos));
 }
 
-GroundedExprPtr TextSpace::find_grounded_type(std::string token) const {
-    for (auto const& pair : grounded_types) {
+ExprPtr TextSpace::find_token(std::string token) const {
+    for (auto const& pair : tokens) {
         if (std::regex_match(token, pair.first)) {
             return pair.second(token);
         }
     }
-    return std::shared_ptr<GroundedExpr>(nullptr);
+    return Expr::INVALID;
 }
 
 TextSpace::ParseResult  TextSpace::recursive_parse(char const* text, char const*& pos) const {
@@ -178,9 +178,9 @@ TextSpace::ParseResult  TextSpace::recursive_parse(char const* text, char const*
         default:
             {
                 std::string token = next_token(pos);
-                GroundedExprPtr grounded = find_grounded_type(token);
-                if (grounded) {
-                    return { grounded, false };
+                ExprPtr expr = find_token(token);
+                if (expr) {
+                    return { expr, false };
                 } else {
                     return { S(token), false };
                 }

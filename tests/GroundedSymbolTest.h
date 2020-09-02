@@ -46,11 +46,11 @@ public:
 
     void test_adding_new_grounded_types() {
         TextSpace text_kb;
-        text_kb.register_grounded_type(std::regex("\\d+(\\.\\d+)?"),
+        text_kb.register_token(std::regex("\\d+(\\.\\d+)?"),
                 [] (std::string str) -> GroundedExprPtr {
                     return std::make_shared<FloatAtom>(std::stof(str));    
                 });
-        text_kb.register_grounded_type(std::regex("\\+"),
+        text_kb.register_token(std::regex("\\+"),
                 [] (std::string str) -> GroundedExprPtr {
                     return std::make_shared<PlusAtom>();    
                 });
@@ -67,15 +67,15 @@ public:
     // FIXME: test is not passed yet
     void _test_two_grounded_types() {
         TextSpace text_kb;
-        text_kb.register_grounded_type(std::regex("\\d+(\\.\\d+)?"),
+        text_kb.register_token(std::regex("\\d+(\\.\\d+)?"),
                 [] (std::string str) -> GroundedExprPtr {
                     return std::make_shared<FloatAtom>(std::stof(str));    
                 });
-        text_kb.register_grounded_type(std::regex("\"[^\"]*\""),
+        text_kb.register_token(std::regex("\"[^\"]*\""),
                 [] (std::string str) -> GroundedExprPtr {
                     return std::make_shared<StringAtom>(str.substr(1, str.size() - 2));    
                 });
-        text_kb.register_grounded_type(std::regex("\\+"),
+        text_kb.register_token(std::regex("\\+"),
                 [] (std::string str) -> GroundedExprPtr {
                     return std::make_shared<PlusAtom>();    
                 });

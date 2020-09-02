@@ -167,8 +167,8 @@ public:
 
     static std::string TYPE;
 
-    using GroundedExprConstr = std::function<GroundedExprPtr(std::string)>;
-    using GroundedTypeDescr = std::pair<std::regex, GroundedExprConstr>;
+    using ExprConstr = std::function<ExprPtr(std::string)>;
+    using TokenDescr = std::pair<std::regex, ExprConstr>;
 
     virtual ~TextSpace() { }
 
@@ -184,12 +184,12 @@ public:
         code.push_back(str_expr);
     }
 
-    void register_grounded_type(std::regex regex,
-            GroundedExprConstr constructor) {
-        grounded_types.push_back(GroundedTypeDescr(regex, constructor));
+    void register_token(std::regex regex,
+            ExprConstr constructor) {
+        tokens.push_back(TokenDescr(regex, constructor));
     }
 
-    GroundedExprPtr find_grounded_type(std::string token) const;
+    ExprPtr find_token(std::string token) const;
 
 private:
     struct ParseResult {
@@ -201,7 +201,7 @@ private:
     void parse(std::string text, std::function<void(ExprPtr)> add) const;
 
     std::vector<std::string> code; 
-    std::vector<GroundedTypeDescr> grounded_types;
+    std::vector<TokenDescr> tokens;
 };
 
 #endif // GROUNDING_SPACE_H

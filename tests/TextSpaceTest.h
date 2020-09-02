@@ -49,7 +49,7 @@ public:
     void test_parse_grounded_expression() {
         TextSpace text;
         GroundingSpace space;
-        text.register_grounded_type(std::regex("\\d+(\\.\\d+)?"),
+        text.register_token(std::regex("\\d+(\\.\\d+)?"),
                 [] (std::string str) -> GroundedExprPtr {
                     return std::make_shared<FloatAtom>(std::stof(str));    
                 });
