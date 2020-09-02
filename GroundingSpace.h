@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
-#include <iostream>
+#include <regex>
 
 #include "SpaceAPI.h"
 
@@ -74,28 +74,36 @@ private:
     std::vector<ExprPtr> children;
 };
 
-bool CompositeExpr::operator==(Expr const& _other) const { 
-    if (_other.get_type() != COMPOSITE) {
+bool operator==(std::vector<ExprPtr> const& a, std::vector<ExprPtr> const& b) {
+    if (a.size() != b.size()) {
         return false;
     }
-    CompositeExpr const& other = static_cast<CompositeExpr const&>(_other);
-    if (children.size() != other.children.size()) {
-        return false;
-    }
-    for (int i = 0; i < children.size(); ++i) {
-        if (*children.at(i) != *other.children.at(i)) {
+    for (int i = 0; i < a.size(); ++i) {
+        if (*a.at(i) != *b.at(i)) {
             return false;
         }
     }
     return true;
 }
 
-std::string CompositeExpr::to_string() const {
-    std::string str = "(";
-    for (auto it = children.begin(); it != children.end(); ++it) {
-        str += (it == children.begin() ? "" : " ") + (*it)->to_string();
+bool CompositeExpr::operator==(Expr const& _other) const { 
+    if (_other.get_type() != COMPOSITE) {
+        return false;
     }
-    return str + ")";
+    CompositeExpr const& other = static_cast<CompositeExpr const&>(_other);
+    return children == other.children;
+}
+
+std::string to_string(std::vector<ExprPtr> const& exprs, std::string delimiter) {
+    std::string str = "";
+    for (auto it = exprs.begin(); it != exprs.end(); ++it) {
+        str += (it == exprs.begin() ? "" : delimiter) + (*it)->to_string();
+    }
+    return str;
+}
+
+std::string CompositeExpr::to_string() const {
+    return "(" + ::to_string(children, " ") + ")";
 }
 
 ExprPtr C(std::initializer_list<ExprPtr> children) {
@@ -137,6 +145,23 @@ public:
     Type get_type() const { return GROUNDED; }
 };
 
+using GroundedExprPtr = std::shared_ptr<GroundedExpr>;
+
+template <typename T>
+class ValueAtom : public GroundedExpr {
+public:
+    ValueAtom(T value) : value(value) {}
+    virtual ~ValueAtom() { }
+    bool operator==(Expr const& _other) const { 
+        // TODO: it should be replaced by types?
+        ValueAtom const* other = dynamic_cast<ValueAtom const*>(&_other);
+        return other && other->value == value;
+    }
+    T get() const { return value; }
+private:
+    T value;
+};
+
 // Space
 
 class GroundingSpace : public SpaceAPI {
@@ -159,6 +184,10 @@ public:
     // TODO: Which operations should we add into SpaceAPI to make
     // interpret_step space implementation agnostic?
     ExprPtr interpret_step();
+
+    bool operator==(SpaceAPI const& space) const;
+    bool operator!=(SpaceAPI const& other) const { return !(*this == other); }
+    std::string to_string() const;
 
 private:
 
@@ -223,12 +252,27 @@ ExprPtr GroundingSpace::interpret_step() {
     }
 }
 
+bool GroundingSpace::operator==(SpaceAPI const& _other) const {
+    if (_other.get_type() != GroundingSpace::TYPE) {
+        return false;
+    }
+    GroundingSpace const& other = static_cast<GroundingSpace const&>(_other);
+    return content == other.content;
+}
+
+std::string GroundingSpace::to_string() const {
+    return ::to_string(content, "\n");
+}
+
 // Text space
 
 class TextSpace : public SpaceAPI {
 public:
 
     static std::string TYPE;
+
+    using GroundedExprConstr = std::function<GroundedExprPtr(std::string)>;
+    using GroundedTypeDescr = std::pair<std::regex, GroundedExprConstr>;
 
     virtual ~TextSpace() { }
 
@@ -244,9 +288,26 @@ public:
         code.push_back(str_expr);
     }
 
+    void register_grounded_type(std::regex regex,
+            GroundedExprConstr constructor) {
+        grounded_types.push_back(GroundedTypeDescr(regex, constructor));
+    }
+
+    GroundedExprPtr find_grounded_type(std::string token) const;
+
 private:
+    struct ParseResult {
+        ExprPtr expr;
+        bool is_eof;
+    };
+
+    ParseResult  recursive_parse(char const* text, char const*& pos) const;
+    void parse(std::string text, std::function<void(ExprPtr)> add) const;
+
     std::vector<std::string> code; 
+    std::vector<GroundedTypeDescr> grounded_types;
 };
+
 
 std::string TextSpace::TYPE = "TextSpace";
 
@@ -274,13 +335,16 @@ void parse_error(char const* text, char const* pos, std::string message) {
     throw std::runtime_error(message + "\n" + show_position(text, pos));
 }
 
-struct ParseResult {
-    ExprPtr expr;
-    bool is_eof;
-};
+GroundedExprPtr TextSpace::find_grounded_type(std::string token) const {
+    for (auto const& pair : grounded_types) {
+        if (std::regex_match(token, pair.first)) {
+            return pair.second(token);
+        }
+    }
+    return std::shared_ptr<GroundedExpr>(nullptr);
+}
 
-ParseResult  recursive_parse(char const* text, char const*& pos) {
-    std::clog << "recursive_parse: " << show_position(text, pos) << std::endl;
+TextSpace::ParseResult  TextSpace::recursive_parse(char const* text, char const*& pos) const {
     skip_space(pos);
     switch (*pos) {
         case '$':
@@ -308,12 +372,19 @@ ParseResult  recursive_parse(char const* text, char const*& pos) {
         case '\0':
             return { Expr::INVALID, true };
         default:
-            std::string token = next_token(pos);
-            return { S(token), false };
+            {
+                std::string token = next_token(pos);
+                GroundedExprPtr grounded = find_grounded_type(token);
+                if (grounded) {
+                    return { grounded, false };
+                } else {
+                    return { S(token), false };
+                }
+            }
     };
 }
 
-void parse(std::string text, std::function<void(ExprPtr)> add) {
+void TextSpace::parse(std::string text, std::function<void(ExprPtr)> add) const {
     char const* c_str = text.c_str();
     char const* pos = c_str;
     while (true) {
