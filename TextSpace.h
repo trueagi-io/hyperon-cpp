@@ -32,19 +32,15 @@ public:
         code.push_back(str_expr);
     }
 
-    void register_token(std::regex regex,
-            ExprConstr constructor) {
+    void register_token(std::regex regex, ExprConstr constructor) {
         tokens.push_back(TokenDescr(regex, constructor));
     }
 
-    ExprPtr find_token(std::string token) const;
-
 private:
-    struct ParseResult {
-        ExprPtr expr;
-        bool is_eof;
-    };
 
+    struct ParseResult;
+
+    ExprPtr find_token(std::string token) const;
     ParseResult  recursive_parse(char const* text, char const*& pos) const;
     void parse(std::string text, std::function<void(ExprPtr)> add) const;
 

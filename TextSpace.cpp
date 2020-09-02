@@ -41,6 +41,11 @@ ExprPtr TextSpace::find_token(std::string token) const {
     return Expr::INVALID;
 }
 
+struct TextSpace::ParseResult {
+    ExprPtr expr;
+    bool is_eof;
+};
+
 TextSpace::ParseResult  TextSpace::recursive_parse(char const* text, char const*& pos) const {
     skip_space(pos);
     switch (*pos) {
