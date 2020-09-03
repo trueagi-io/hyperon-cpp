@@ -9,14 +9,14 @@ class FloatAtom : public ValueAtom<float> {
 public:
     FloatAtom(float value) : ValueAtom(value) {}
     virtual ~FloatAtom() {}
-    std::string to_string() const { return std::to_string(get()) + "f"; }
+    std::string to_string() const { return std::to_string(get()); }
 };
 
 class StringAtom : public ValueAtom<std::string> {
 public:
     StringAtom(std::string value) : ValueAtom(value) {}
     virtual ~StringAtom() {}
-    std::string to_string() const { return "\"" + get() + "\"s"; }
+    std::string to_string() const { return "\"" + get() + "\""; }
 };
 
 class PlusAtom : public GroundedExpr {
