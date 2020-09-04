@@ -10,3 +10,5 @@ ADD_LIBRARY(hyperon SHARED GroundingSpace.cpp TextSpace.cpp)
 ENABLE_TESTING()
 ADD_CUSTOM_TARGET(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)
 ADD_SUBDIRECTORY(tests)
+
+ADD_SUBDIRECTORY(python)
