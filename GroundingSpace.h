@@ -102,7 +102,7 @@ class GroundedExpr : public Expr {
 public:
     virtual ~GroundedExpr() { }
     virtual ExprPtr execute(ExprPtr args) const {
-        throw std::runtime_error("Operation not supported");
+        throw std::runtime_error("Operation is not supported");
     }
 
     Type get_type() const { return GROUNDED; }

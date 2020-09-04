@@ -32,6 +32,11 @@ public:
         code.push_back(str_expr);
     }
 
+    // TODO: We could make this method static and allow registering tokens
+    // globally, but on the other hand when it is not static we can register
+    // separate set of tokens in each TextSpace and allow using different
+    // parsers in parallel. Last solution looks more flexible. We could also
+    // pass list of tokens into TextSpace constructor.
     void register_token(std::regex regex, ExprConstr constructor) {
         tokens.push_back(TokenDescr(regex, constructor));
     }
