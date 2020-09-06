@@ -43,16 +43,27 @@ PYBIND11_MODULE(hyperonpy, m) {
         .value("VARIABLE", Expr::Type::VARIABLE)
         .export_values();
 
+    py::class_<SymbolExpr, std::shared_ptr<SymbolExpr>, Expr>(m, "SymbolAtom")
+        .def(py::init<std::string>())
+        .def("get_symbol", &SymbolExpr::get_symbol);
+
     m.def("S", &S); 
+
+    py::class_<VariableExpr, std::shared_ptr<VariableExpr>, Expr>(m, "VariableAtom")
+        .def(py::init<std::string>())
+        .def("get_name", &VariableExpr::get_name);
+
     m.def("V", &V); 
+
+    py::class_<CompositeExpr, std::shared_ptr<CompositeExpr>, Expr>(m, "cCompositeAtom")
+        .def(py::init<std::vector<ExprPtr>>())
+        .def("get_children", &CompositeExpr::get_children);
+
     // The method below should be implemented in Python instead to return
     // Python class which will be container for Python children. Otherwise
     // Python interpreter decreases reference counter for children and
     // releases them (see https://github.com/pybind/pybind11/issues/1389)
     // m.def("C", (ExprPtr (*)(std::vector<ExprPtr>))&C);
-
-    py::class_<CompositeExpr, std::shared_ptr<CompositeExpr>, Expr>(m, "cCompositeAtom")
-        .def(py::init<std::vector<ExprPtr>>());
 
     py::class_<GroundedExpr, PyGroundedExpr, std::shared_ptr<GroundedExpr>, Expr>(m, "GroundedAtom")
         .def(py::init<>())

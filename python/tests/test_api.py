@@ -14,6 +14,9 @@ class ApiTest(unittest.TestCase):
     def test_symbol_type(self):
         self.assertEqual(S("a").get_type(), Atom.SYMBOL)
 
+    def test_symbol_get_symbol(self):
+        self.assertEqual(S("a").get_symbol(), "a")
+
     def test_variable_equals(self):
         self.assertEqual(V("x"), V("x"))
         self.assertNotEqual(V("x"), V("y"))
@@ -22,7 +25,10 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(str(V("x")), "$x")
 
     def test_variable_type(self):
-        self.assertEqual(V("a").get_type(), Atom.VARIABLE)
+        self.assertEqual(V("x").get_type(), Atom.VARIABLE)
+
+    def test_variable_get_name(self):
+        self.assertEqual(V("x").get_name(), "x")
 
     def test_grounded_equals(self):
         self.assertEqual(FloatAtom(1.0), FloatAtom(1.0))
@@ -50,11 +56,15 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(C(X2Atom(), FloatAtom(1.0)),
                 C(X2Atom(), FloatAtom(1.0)))
 
-    def test_symbol_str(self):
+    def test_composite_str(self):
         self.assertEqual(str(C(X2Atom(), FloatAtom(1.0))), "(*2 1.0)")
 
-    def test_symbol_type(self):
+    def test_composite_type(self):
         self.assertEqual(C(X2Atom(), FloatAtom(1.0)).get_type(), Atom.COMPOSITE)
+
+    def test_composite_get_children(self):
+        self.assertEqual(C(X2Atom(), FloatAtom(1.0)).get_children(),
+                [X2Atom(), FloatAtom(1.0)])
 
 class FloatAtom(GroundedAtom):
 
