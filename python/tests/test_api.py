@@ -1,6 +1,6 @@
 import unittest
 
-from hyperonpy import *
+from hyperon import *
 
 class ApiTest(unittest.TestCase):
 
@@ -12,7 +12,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(str(S("a")), "a")
 
     def test_symbol_type(self):
-        self.assertEqual(S("a").get_type(), Expr.SYMBOL)
+        self.assertEqual(S("a").get_type(), Atom.SYMBOL)
 
     def test_variable_equals(self):
         self.assertEqual(V("x"), V("x"))
@@ -22,7 +22,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(str(V("x")), "$x")
 
     def test_variable_type(self):
-        self.assertEqual(V("a").get_type(), Expr.VARIABLE)
+        self.assertEqual(V("a").get_type(), Atom.VARIABLE)
 
     def test_grounded_equals(self):
         self.assertEqual(FloatAtom(1.0), FloatAtom(1.0))
@@ -32,7 +32,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(str(FloatAtom(1.0)), "1.0")
 
     def test_grounded_type(self):
-        self.assertEqual(FloatAtom(1.0).get_type(), Expr.GROUNDED)
+        self.assertEqual(FloatAtom(1.0).get_type(), Atom.GROUNDED)
 
     def test_grounded_execute_default(self):
         with self.assertRaises(RuntimeError) as e:
@@ -41,6 +41,20 @@ class ApiTest(unittest.TestCase):
 
     def test_grounded_execute(self):
         self.assertEqual(X2Atom().execute(FloatAtom(1.0)), FloatAtom(2.0))
+
+    def test_composite_equals(self):
+        self.assertEqual(C(S("+"), S("1"), S("2")),
+                C(S("+"), S("1"), S("2")))
+
+    def test_composite_equals_grounded(self):
+        self.assertEqual(C(X2Atom(), FloatAtom(1.0)),
+                C(X2Atom(), FloatAtom(1.0)))
+
+    def test_symbol_str(self):
+        self.assertEqual(str(C(X2Atom(), FloatAtom(1.0))), "(*2 1.0)")
+
+    def test_symbol_type(self):
+        self.assertEqual(C(X2Atom(), FloatAtom(1.0)).get_type(), Atom.COMPOSITE)
 
 class FloatAtom(GroundedAtom):
 
@@ -65,7 +79,7 @@ class X2Atom(GroundedAtom):
         return FloatAtom(2 * expr.value);
 
     def __eq__(self, other):
-        return isinstance(other, GroundedFunc)
+        return isinstance(other, X2Atom)
 
     def __repr__(self):
-        return "foo"
+        return "*2"

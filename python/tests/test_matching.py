@@ -1,7 +1,7 @@
 import unittest
 import re
 
-from hyperonpy import *
+from hyperon import *
 
 class MatchingTest(unittest.TestCase):
 

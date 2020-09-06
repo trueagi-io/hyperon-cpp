@@ -113,7 +113,7 @@ using GroundedExprPtr = std::shared_ptr<GroundedExpr>;
 template <typename T>
 class ValueAtom : public GroundedExpr {
 public:
-    ValueAtom(T value) : value(value) {}
+    ValueAtom(T value) : value(value) { }
     virtual ~ValueAtom() { }
     bool operator==(Expr const& _other) const { 
         // TODO: should it be replaced by type checking?
