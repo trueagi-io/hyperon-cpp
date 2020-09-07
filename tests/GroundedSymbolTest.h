@@ -9,30 +9,30 @@ class FloatAtom : public ValueAtom<float> {
 public:
     FloatAtom(float value) : ValueAtom(value) {}
     virtual ~FloatAtom() {}
-    std::string to_string() const { return std::to_string(get()); }
+    std::string to_string() const override { return std::to_string(get()); }
 };
 
 class StringAtom : public ValueAtom<std::string> {
 public:
     StringAtom(std::string value) : ValueAtom(value) {}
     virtual ~StringAtom() {}
-    std::string to_string() const { return "\"" + get() + "\""; }
+    std::string to_string() const override { return "\"" + get() + "\""; }
 };
 
 class PlusAtom : public GroundedExpr {
 public:
     virtual ~PlusAtom() { }
-    ExprPtr execute(ExprPtr _args) const {
+    ExprPtr execute(ExprPtr _args) const override {
         CompositeExprPtr args = std::dynamic_pointer_cast<CompositeExpr>(_args);
         FloatAtom const* a = dynamic_cast<FloatAtom const*>(args->get_children()[1].get());
         FloatAtom const* b = dynamic_cast<FloatAtom const*>(args->get_children()[2].get());
         float c = a->get() + b->get();
         return std::make_shared<FloatAtom>(c);
     }
-    bool operator==(Expr const& _other) const { 
+    bool operator==(Expr const& _other) const override { 
         return dynamic_cast<PlusAtom const*>(&_other);
     }
-    std::string to_string() const { return "+"; }
+    std::string to_string() const override { return "+"; }
 };
 
 class GroundedSymbolTest : public CxxTest::TestSuite {

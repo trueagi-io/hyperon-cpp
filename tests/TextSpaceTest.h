@@ -7,7 +7,7 @@ class FloatAtom : public ValueAtom<float> {
 public:
     FloatAtom(float value) : ValueAtom(value) {}
     virtual ~FloatAtom() {}
-    std::string to_string() const { return std::to_string(get()); }
+    std::string to_string() const override { return std::to_string(get()); }
 };
 
 class TextSpaceTest : public CxxTest::TestSuite {

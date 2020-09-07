@@ -20,13 +20,13 @@ public:
 
     virtual ~TextSpace() { }
 
-    void add_to(SpaceAPI& space) const;
+    void add_to(SpaceAPI& space) const override;
 
-    void add_native(const SpaceAPI* other) {
+    void add_native(const SpaceAPI* other) override {
         throw std::logic_error("Method is not implemented");
     }
 
-    std::string get_type() const { return TYPE; }
+    std::string get_type() const override { return TYPE; }
 
     void add_string(std::string str_expr) {
         code.push_back(str_expr);

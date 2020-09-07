@@ -11,19 +11,19 @@ class PySpaceAPI : public SpaceAPI {
 public:
     using SpaceAPI::SpaceAPI;
 
-    void add_to(SpaceAPI& graph) const {
+    void add_to(SpaceAPI& graph) const override {
         PYBIND11_OVERLOAD_PURE(void, SpaceAPI, add_to, graph);
     }
 
-    void add_from_space(const SpaceAPI& graph) {
+    void add_from_space(const SpaceAPI& graph) override {
         PYBIND11_OVERLOAD_PURE(void, SpaceAPI, add_from_space, graph);
     }
 
-    void add_native(const SpaceAPI* pGraph) {
+    void add_native(const SpaceAPI* pGraph) override {
         PYBIND11_OVERLOAD_PURE(void, SpaceAPI, add_native, pGraph);
     }
 
-    std::string get_type() const {
+    std::string get_type() const override {
         PYBIND11_OVERLOAD_PURE(std::string, SpaceAPI, get_type,)
     }
     
@@ -59,7 +59,7 @@ class PyGroundedExpr : public GroundedExprProxy {
 public:
     using GroundedExprProxy::GroundedExprProxy;
 
-    py::object py_execute(py::object args) const {
+    py::object py_execute(py::object args) const override {
         PYBIND11_OVERLOAD_NAME(py::object, GroundedExprProxy, "execute", py_execute, args);
     }
 

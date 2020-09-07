@@ -41,12 +41,12 @@ public:
     SymbolExpr(std::string symbol) : symbol(symbol) { }
     std::string get_symbol() const { return symbol; }
 
-    Type get_type() const { return SYMBOL; }
-    bool operator==(Expr const& _other) const { 
+    Type get_type() const override { return SYMBOL; }
+    bool operator==(Expr const& _other) const override { 
         SymbolExpr const* other = dynamic_cast<SymbolExpr const*>(&_other);
         return other && symbol == other->symbol;
     }
-    std::string to_string() const { return symbol; }
+    std::string to_string() const override { return symbol; }
 private:
     std::string symbol;
 };
@@ -61,9 +61,9 @@ public:
     CompositeExpr(std::vector<ExprPtr> children) : children(children) { }
     std::vector<ExprPtr>& get_children() { return children; }
 
-    Type get_type() const { return COMPOSITE; }
-    bool operator==(Expr const& _other) const;
-    std::string to_string() const { return "(" + ::to_string(children, " ") + ")"; }
+    Type get_type() const override { return COMPOSITE; }
+    bool operator==(Expr const& _other) const override;
+    std::string to_string() const override { return "(" + ::to_string(children, " ") + ")"; }
 
 private:
     std::vector<ExprPtr> children;
@@ -84,12 +84,12 @@ public:
     VariableExpr(std::string name) : name(name) { }
     std::string get_name() const { return name; }
 
-    Type get_type() const { return VARIABLE; }
-    bool operator==(Expr const& _other) const {
+    Type get_type() const override { return VARIABLE; }
+    bool operator==(Expr const& _other) const override {
         VariableExpr const* other = dynamic_cast<VariableExpr const*>(&_other);
         return other && name == other->name;
     }
-    std::string to_string() const { return "$" + name; }
+    std::string to_string() const override { return "$" + name; }
 private:
     std::string name;
 };
@@ -105,7 +105,7 @@ public:
         throw std::runtime_error("Operation is not supported");
     }
 
-    Type get_type() const { return GROUNDED; }
+    Type get_type() const override { return GROUNDED; }
 };
 
 using GroundedExprPtr = std::shared_ptr<GroundedExpr>;
@@ -115,7 +115,7 @@ class ValueAtom : public GroundedExpr {
 public:
     ValueAtom(T value) : value(value) { }
     virtual ~ValueAtom() { }
-    bool operator==(Expr const& _other) const { 
+    bool operator==(Expr const& _other) const override { 
         // TODO: should it be replaced by type checking?
         ValueAtom const* other = dynamic_cast<ValueAtom const*>(&_other);
         return other && other->value == value;
@@ -134,11 +134,11 @@ public:
 
     virtual ~GroundingSpace() { }
 
-    void add_native(const SpaceAPI* other) {
+    void add_native(const SpaceAPI* other) override {
         throw std::logic_error("Method is not implemented");
     }
 
-    std::string get_type() const { return TYPE; }
+    std::string get_type() const override { return TYPE; }
 
     void add_expr(ExprPtr expr) {
         content.push_back(expr);
