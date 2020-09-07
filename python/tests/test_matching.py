@@ -5,6 +5,14 @@ from hyperon import *
 
 class MatchingTest(unittest.TestCase):
 
+    def test_interpreter_grounding_python(self):
+        target = GroundingSpace()
+        target.add_expr(C(PlusAtom(), ValueAtom(1), ValueAtom(2)))
+
+        result = target.interpret_step(GroundingSpace())
+
+        self.assertEqual(result, ValueAtom(3))
+
     @unittest.skip("not implemented yet")
     def test_simple_matching_python(self):
         kb = GroundingSpace()
@@ -40,6 +48,18 @@ def atomese(program):
             lambda token: CallAtom(token[5:]))
     kb.add_from_space(text)
     return kb
+
+class PlusAtom(GroundedAtom):
+
+    def __init__(self):
+        GroundedAtom.__init__(self)
+
+    def execute(self, composite):
+        children = composite.get_children()
+        return ValueAtom(children[1].value + children[2].value)
+
+    def __repr__(self):
+        return "+"
 
 class DeviceAtom(GroundedAtom):
 

@@ -29,20 +29,37 @@ public:
     
 };
 
-class PyGroundedExpr : public GroundedExpr {
+class GroundedExprProxy : public GroundedExpr {
 public:
-    using GroundedExpr::GroundedExpr;
+    virtual ~GroundedExprProxy() { }
 
     ExprPtr execute(ExprPtr args) const override {
-        PYBIND11_OVERLOAD(ExprPtr, GroundedExpr, execute, args);
+        py::object py_result = py_execute(py::cast(args));
+        // pass ownership to C++ smart pointer
+        py_result.inc_ref();
+        return std::shared_ptr<Expr>(py_result.cast<Expr*>(),
+                [](Expr* p) -> void { py::cast(p).dec_ref(); });
+    }
+
+    virtual py::object py_execute(py::object args) const {
+        throw std::runtime_error("Operation is not supported");
+    }
+};
+
+class PyGroundedExpr : public GroundedExprProxy {
+public:
+    using GroundedExprProxy::GroundedExprProxy;
+
+    py::object py_execute(py::object args) const {
+        PYBIND11_OVERLOAD_NAME(py::object, GroundedExprProxy, "execute", py_execute, args);
     }
 
     bool operator==(Expr const& other) const override {
-        PYBIND11_OVERLOAD_PURE_NAME(bool, GroundedExpr, "__eq__", operator==, other);
+        PYBIND11_OVERLOAD_PURE_NAME(bool, GroundedExprProxy, "__eq__", operator==, other);
     }
 
     std::string to_string() const override {
-        PYBIND11_OVERLOAD_PURE_NAME(std::string, GroundedExpr, "__repr__", to_string,);
+        PYBIND11_OVERLOAD_PURE_NAME(std::string, GroundedExprProxy, "__repr__", to_string,);
     }
 };
 
@@ -90,9 +107,9 @@ PYBIND11_MODULE(hyperonpy, m) {
 
     m.def("C", (ExprPtr (*)(std::vector<ExprPtr>))&C, py::keep_alive<0, 1>());
 
-    py::class_<GroundedExpr, PyGroundedExpr, std::shared_ptr<GroundedExpr>, Expr>(m, "GroundedAtom")
+    py::class_<GroundedExprProxy, PyGroundedExpr, std::shared_ptr<GroundedExprProxy>, Expr>(m, "GroundedAtom")
         .def(py::init<>())
-        .def("execute", &GroundedExpr::execute);
+        .def("execute", &GroundedExprProxy::py_execute);
 
     py::class_<GroundingSpace, SpaceAPI>(m, "GroundingSpace")
         .def(py::init<>())
