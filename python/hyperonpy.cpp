@@ -81,7 +81,6 @@ public:
 
 class TextSpaceProxy : public TextSpace {
 public:
-
     void py_register_token(std::string regex, py::object constr) {
         TextSpace::register_token(std::regex(regex),
                 [constr](std::string str) -> ExprPtr {
@@ -89,7 +88,6 @@ public:
                     return py_shared_ptr<Expr>(py_result);
                 });
     }
-
 };
 
 PYBIND11_MODULE(hyperonpy, m) {
@@ -130,10 +128,11 @@ PYBIND11_MODULE(hyperonpy, m) {
     // vectors when converting Python lists to them and vice versa. Better way
     // is adapting Python list interface to std::vector or introduce light
     // container interface instead of std::vector and adapt Python list to it.
-    py::class_<CompositeExpr, std::shared_ptr<CompositeExpr>, Expr>(m, "cCompositeAtom")
+    py::class_<CompositeExpr, std::shared_ptr<CompositeExpr>, Expr>(m, "CompositeAtom")
         .def(py::init<std::vector<ExprPtr>>())
         .def("get_children", &CompositeExpr::get_children);
 
+    // FIXME: replace keep_alive by py_shared_ptr
     m.def("C", (ExprPtr (*)(std::vector<ExprPtr>))&C, py::keep_alive<0, 1>());
 
     py::class_<GroundedExprProxy, PyGroundedExpr, std::shared_ptr<GroundedExprProxy>, Expr>(m, "GroundedAtom")
@@ -142,7 +141,7 @@ PYBIND11_MODULE(hyperonpy, m) {
 
     py::class_<GroundingSpaceProxy, SpaceAPI>(m, "GroundingSpace")
         .def(py::init<>())
-        .def_readonly_static("TYPE", &GroundingSpace::TYPE)
+        .def_readonly_static("TYPE", &GroundingSpaceProxy::TYPE)
         .def("add_expr", &GroundingSpaceProxy::py_add_expr)
         .def("interpret_step", &GroundingSpaceProxy::interpret_step)
         .def("__eq__", &GroundingSpaceProxy::operator==)
@@ -150,7 +149,7 @@ PYBIND11_MODULE(hyperonpy, m) {
 
     py::class_<TextSpaceProxy, SpaceAPI>(m, "TextSpace")
         .def(py::init<>())
-        .def_readonly_static("TYPE", &TextSpace::TYPE)
+        .def_readonly_static("TYPE", &TextSpaceProxy::TYPE)
         .def("add_string", &TextSpaceProxy::add_string)
         .def("register_token", &TextSpaceProxy::py_register_token);
 }
