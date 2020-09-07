@@ -66,6 +66,36 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(C(X2Atom(), FloatAtom(1.0)).get_children(),
                 [X2Atom(), FloatAtom(1.0)])
 
+    def test_groundingspace_get_type(self):
+        kb = GroundingSpace()
+        self.assertEqual(kb.get_type(), GroundingSpace.TYPE)
+
+    def test_groundingspace_str(self):
+        kb = GroundingSpace()
+        kb.add_expr(C(S("+"), S("1"), S("2")))
+        self.assertEqual(str(kb), "(+ 1 2)")
+
+    def test_groundingspace_equals(self):
+        kb_a = GroundingSpace()
+        kb_a.add_expr(C(S("+"), S("1"), S("2")))
+        kb_b = GroundingSpace()
+        kb_b.add_expr(C(S("+"), S("1"), S("2")))
+        self.assertEqual(kb_a, kb_b)
+
+    def test_textspace_get_type(self):
+        text = TextSpace()
+        self.assertEqual(text.get_type(), TextSpace.TYPE)
+
+    def test_textspace_symbol(self):
+        text = TextSpace()
+        text.add_string("(+ 1 2)")
+        kb = GroundingSpace()
+        text.add_to(kb)
+
+        expected = GroundingSpace()
+        expected.add_expr(C(S("+"), S("1"), S("2")))
+        self.assertEqual(kb, expected)
+
 class FloatAtom(GroundedAtom):
 
     def __init__(self, value):

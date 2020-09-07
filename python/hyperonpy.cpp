@@ -7,6 +7,28 @@
 
 namespace py = pybind11;
 
+class PySpaceAPI : public SpaceAPI {
+public:
+    using SpaceAPI::SpaceAPI;
+
+    void add_to(SpaceAPI& graph) const {
+        PYBIND11_OVERLOAD_PURE(void, SpaceAPI, add_to, graph);
+    }
+
+    void add_from_space(const SpaceAPI& graph) {
+        PYBIND11_OVERLOAD_PURE(void, SpaceAPI, add_from_space, graph);
+    }
+
+    void add_native(const SpaceAPI* pGraph) {
+        PYBIND11_OVERLOAD_PURE(void, SpaceAPI, add_native, pGraph);
+    }
+
+    std::string get_type() const {
+        PYBIND11_OVERLOAD_PURE(std::string, SpaceAPI, get_type,)
+    }
+    
+};
+
 class PyGroundedExpr : public GroundedExpr {
 public:
     using GroundedExpr::GroundedExpr;
@@ -26,9 +48,12 @@ public:
 
 PYBIND11_MODULE(hyperonpy, m) {
 
-    py::class_<SpaceAPI>(m, "SpaceAPI")
-        .def("get_type", &SpaceAPI::get_type)
-        .def("add_from_space", &SpaceAPI::add_from_space);
+    py::class_<SpaceAPI, PySpaceAPI>(m, "SpaceAPI")
+        .def(py::init<>())
+        .def("add_to", &SpaceAPI::add_to)
+        .def("add_from_space", &SpaceAPI::add_from_space)
+        .def("add_native", &SpaceAPI::add_native)
+        .def("get_type", &SpaceAPI::get_type);
 
     py::class_<Expr, std::shared_ptr<Expr>> atom(m, "Atom");
 
@@ -63,23 +88,23 @@ PYBIND11_MODULE(hyperonpy, m) {
         .def(py::init<std::vector<ExprPtr>>())
         .def("get_children", &CompositeExpr::get_children);
 
-    // The method below should be implemented in Python instead to return
-    // Python class which will be container for Python children. Otherwise
-    // Python interpreter decreases reference counter for children and
-    // releases them (see https://github.com/pybind/pybind11/issues/1389)
-    // m.def("C", (ExprPtr (*)(std::vector<ExprPtr>))&C);
+    m.def("C", (ExprPtr (*)(std::vector<ExprPtr>))&C, py::keep_alive<0, 1>());
 
     py::class_<GroundedExpr, PyGroundedExpr, std::shared_ptr<GroundedExpr>, Expr>(m, "GroundedAtom")
         .def(py::init<>())
         .def("execute", &GroundedExpr::execute);
 
-    py::class_<GroundingSpace, SpaceAPI>(m, "cGroundingSpace")
+    py::class_<GroundingSpace, SpaceAPI>(m, "GroundingSpace")
         .def(py::init<>())
-        .def("add_expr", &GroundingSpace::add_expr)
-        .def("interpret_step", &GroundingSpace::interpret_step);
+        .def_readonly_static("TYPE", &GroundingSpace::TYPE)
+        .def("add_expr", &GroundingSpace::add_expr, py::keep_alive<1, 2>())
+        .def("interpret_step", &GroundingSpace::interpret_step)
+        .def("__eq__", &GroundingSpace::operator==)
+        .def("__repr__", &GroundingSpace::to_string);
 
-    py::class_<TextSpace, SpaceAPI>(m, "cTextSpace")
+    py::class_<TextSpace, SpaceAPI>(m, "TextSpace")
         .def(py::init<>())
+        .def_readonly_static("TYPE", &TextSpace::TYPE)
         .def("add_string", &TextSpace::add_string)
         .def("register_token", &TextSpace::register_token);
 }

@@ -2,17 +2,24 @@ from hyperonpy import (
         Atom,
         S,
         V,
+        C as _C,
         GroundedAtom,
-        cCompositeAtom as _cCompositeAtom,
-        cGroundingSpace as _cGroundingSpace,
-        cTextSpace as _cTextSpace)
+        GroundingSpace,
+        TextSpace)
 
 def C(*args):
-    return _CompositeAtom(*args)
+    return _C(list(args))
 
-class _CompositeAtom(_cCompositeAtom):
+class ValueAtom(GroundedAtom):
 
-    def __init__(self, *args):
-        _cCompositeAtom.__init__(self, list(args))
-        self.children = list(args);
+    def __init__(self, value):
+        GroundedAtom.__init__(self)
+        self.value = value
 
+    def __eq__(self, other):
+        if isinstance(other, ValueAtom):
+            return self.value == other.value
+        return False
+
+    def __repr__(self):
+        return repr(self.value)
