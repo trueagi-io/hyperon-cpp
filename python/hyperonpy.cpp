@@ -41,13 +41,13 @@ std::shared_ptr<T> py_shared_ptr(py::object pyobj) {
             [](T* p) -> void { py::cast(p).dec_ref(); });
 }
 
-class GroundedExprProxy : public GroundedExpr {
+class GroundedAtomProxy : public GroundedAtom {
 public:
-    virtual ~GroundedExprProxy() { }
+    virtual ~GroundedAtomProxy() { }
 
-    ExprPtr execute(ExprPtr args) const override {
+    AtomPtr execute(AtomPtr args) const override {
         py::object py_result = py_execute(py::cast(args));
-        return py_shared_ptr<Expr>(py_result);
+        return py_shared_ptr<Atom>(py_result);
     }
 
     virtual py::object py_execute(py::object args) const {
@@ -55,27 +55,27 @@ public:
     }
 };
 
-class PyGroundedExpr : public GroundedExprProxy {
+class PyGroundedAtom : public GroundedAtomProxy {
 public:
-    using GroundedExprProxy::GroundedExprProxy;
+    using GroundedAtomProxy::GroundedAtomProxy;
 
     py::object py_execute(py::object args) const override {
-        PYBIND11_OVERLOAD_NAME(py::object, GroundedExprProxy, "execute", py_execute, args);
+        PYBIND11_OVERLOAD_NAME(py::object, GroundedAtomProxy, "execute", py_execute, args);
     }
 
-    bool operator==(Expr const& other) const override {
-        PYBIND11_OVERLOAD_PURE_NAME(bool, GroundedExprProxy, "__eq__", operator==, other);
+    bool operator==(Atom const& other) const override {
+        PYBIND11_OVERLOAD_PURE_NAME(bool, GroundedAtomProxy, "__eq__", operator==, other);
     }
 
     std::string to_string() const override {
-        PYBIND11_OVERLOAD_PURE_NAME(std::string, GroundedExprProxy, "__repr__", to_string,);
+        PYBIND11_OVERLOAD_PURE_NAME(std::string, GroundedAtomProxy, "__repr__", to_string,);
     }
 };
 
 class GroundingSpaceProxy : public GroundingSpace {
 public:
-    void py_add_expr(py::object expr) {
-        GroundingSpace::add_expr(py_shared_ptr<Expr>(expr));
+    void py_add_atom(py::object atom) {
+        GroundingSpace::add_atom(py_shared_ptr<Atom>(atom));
     }
 };
 
@@ -83,9 +83,9 @@ class TextSpaceProxy : public TextSpace {
 public:
     void py_register_token(std::string regex, py::object constr) {
         TextSpace::register_token(std::regex(regex),
-                [constr](std::string str) -> ExprPtr {
+                [constr](std::string str) -> AtomPtr {
                     py::object py_result = constr(str);
-                    return py_shared_ptr<Expr>(py_result);
+                    return py_shared_ptr<Atom>(py_result);
                 });
     }
 };
@@ -99,28 +99,28 @@ PYBIND11_MODULE(hyperonpy, m) {
         .def("add_native", &SpaceAPI::add_native)
         .def("get_type", &SpaceAPI::get_type);
 
-    py::class_<Expr, std::shared_ptr<Expr>> atom(m, "Atom");
+    py::class_<Atom, std::shared_ptr<Atom>> atom(m, "Atom");
 
-    atom.def("get_type", &Expr::get_type)
-        .def("__eq__", &Expr::operator==)
-        .def("__repr__", &Expr::to_string);
+    atom.def("get_type", &Atom::get_type)
+        .def("__eq__", &Atom::operator==)
+        .def("__repr__", &Atom::to_string);
 
-    py::enum_<Expr::Type>(atom, "Type")
-        .value("SYMBOL", Expr::Type::SYMBOL)
-        .value("GROUNDED", Expr::Type::GROUNDED)
-        .value("COMPOSITE", Expr::Type::COMPOSITE)
-        .value("VARIABLE", Expr::Type::VARIABLE)
+    py::enum_<Atom::Type>(atom, "Type")
+        .value("SYMBOL", Atom::Type::SYMBOL)
+        .value("GROUNDED", Atom::Type::GROUNDED)
+        .value("EXPR", Atom::Type::EXPR)
+        .value("VARIABLE", Atom::Type::VARIABLE)
         .export_values();
 
-    py::class_<SymbolExpr, std::shared_ptr<SymbolExpr>, Expr>(m, "SymbolAtom")
+    py::class_<SymbolAtom, std::shared_ptr<SymbolAtom>, Atom>(m, "SymbolAtom")
         .def(py::init<std::string>())
-        .def("get_symbol", &SymbolExpr::get_symbol);
+        .def("get_symbol", &SymbolAtom::get_symbol);
 
     m.def("S", &S); 
 
-    py::class_<VariableExpr, std::shared_ptr<VariableExpr>, Expr>(m, "VariableAtom")
+    py::class_<VariableAtom, std::shared_ptr<VariableAtom>, Atom>(m, "VariableAtom")
         .def(py::init<std::string>())
-        .def("get_name", &VariableExpr::get_name);
+        .def("get_name", &VariableAtom::get_name);
 
     m.def("V", &V); 
 
@@ -128,21 +128,21 @@ PYBIND11_MODULE(hyperonpy, m) {
     // vectors when converting Python lists to them and vice versa. Better way
     // is adapting Python list interface to std::vector or introduce light
     // container interface instead of std::vector and adapt Python list to it.
-    py::class_<CompositeExpr, std::shared_ptr<CompositeExpr>, Expr>(m, "CompositeAtom")
-        .def(py::init<std::vector<ExprPtr>>())
-        .def("get_children", &CompositeExpr::get_children);
+    py::class_<ExprAtom, std::shared_ptr<ExprAtom>, Atom>(m, "ExprAtom")
+        .def(py::init<std::vector<AtomPtr>>())
+        .def("get_children", &ExprAtom::get_children);
 
     // FIXME: replace keep_alive by py_shared_ptr
-    m.def("C", (ExprPtr (*)(std::vector<ExprPtr>))&C, py::keep_alive<0, 1>());
+    m.def("E", (AtomPtr (*)(std::vector<AtomPtr>))&E, py::keep_alive<0, 1>());
 
-    py::class_<GroundedExprProxy, PyGroundedExpr, std::shared_ptr<GroundedExprProxy>, Expr>(m, "GroundedAtom")
+    py::class_<GroundedAtomProxy, PyGroundedAtom, std::shared_ptr<GroundedAtomProxy>, Atom>(m, "GroundedAtom")
         .def(py::init<>())
-        .def("execute", &GroundedExprProxy::py_execute);
+        .def("execute", &GroundedAtomProxy::py_execute);
 
     py::class_<GroundingSpaceProxy, SpaceAPI>(m, "GroundingSpace")
         .def(py::init<>())
         .def_readonly_static("TYPE", &GroundingSpaceProxy::TYPE)
-        .def("add_expr", &GroundingSpaceProxy::py_add_expr)
+        .def("add_atom", &GroundingSpaceProxy::py_add_atom)
         .def("interpret_step", &GroundingSpaceProxy::interpret_step)
         .def("__eq__", &GroundingSpaceProxy::operator==)
         .def("__repr__", &GroundingSpaceProxy::to_string);

@@ -32,17 +32,17 @@ static void parse_error(char const* text, char const* pos, std::string message) 
     throw std::runtime_error(message + "\n" + show_position(text, pos));
 }
 
-ExprPtr TextSpace::find_token(std::string token) const {
+AtomPtr TextSpace::find_token(std::string token) const {
     for (auto const& pair : tokens) {
         if (std::regex_match(token, pair.first)) {
             return pair.second(token);
         }
     }
-    return Expr::INVALID;
+    return Atom::INVALID;
 }
 
 struct TextSpace::ParseResult {
-    ExprPtr expr;
+    AtomPtr atom;
     bool is_eof;
 };
 
@@ -55,7 +55,7 @@ TextSpace::ParseResult  TextSpace::recursive_parse(char const* text, char const*
         case '(':
             {
                 ++pos;
-                std::vector<ExprPtr> children;
+                std::vector<AtomPtr> children;
                 while (true) {
                     skip_space(pos);
                     if (*pos == ')') {
@@ -66,19 +66,19 @@ TextSpace::ParseResult  TextSpace::recursive_parse(char const* text, char const*
                     if (result.is_eof) {
                         parse_error(text, pos, "Unexpected end of expression");
                     }
-                    children.push_back(result.expr);
+                    children.push_back(result.atom);
                 }
-                ExprPtr expr = C(children);
-                return { expr, false };
+                AtomPtr atom = E(children);
+                return { atom, false };
             }
         case '\0':
-            return { Expr::INVALID, true };
+            return { Atom::INVALID, true };
         default:
             {
                 std::string token = next_token(pos);
-                ExprPtr expr = find_token(token);
-                if (expr) {
-                    return { expr, false };
+                AtomPtr atom = find_token(token);
+                if (atom) {
+                    return { atom, false };
                 } else {
                     return { S(token), false };
                 }
@@ -86,7 +86,7 @@ TextSpace::ParseResult  TextSpace::recursive_parse(char const* text, char const*
     };
 }
 
-void TextSpace::parse(std::string text, std::function<void(ExprPtr)> add) const {
+void TextSpace::parse(std::string text, std::function<void(AtomPtr)> add) const {
     char const* c_str = text.c_str();
     char const* pos = c_str;
     while (true) {
@@ -94,15 +94,15 @@ void TextSpace::parse(std::string text, std::function<void(ExprPtr)> add) const 
         if (result.is_eof) {
             break;
         }
-        add(result.expr);
+        add(result.atom);
     }
 }
 
 void TextSpace::add_to(SpaceAPI& _space) const {
     if (_space.get_type() == GroundingSpace::TYPE) {
         GroundingSpace& space = static_cast<GroundingSpace&>(_space);
-        for (auto const& str_expr : code) {
-            parse(str_expr, [&space] (ExprPtr expr) -> void { space.add_expr(expr); });
+        for (auto const& str_atom : code) {
+            parse(str_atom, [&space] (AtomPtr atom) -> void { space.add_atom(atom); });
         }
     } else {
         SpaceAPI::add_to(_space);

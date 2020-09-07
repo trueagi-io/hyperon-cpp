@@ -48,22 +48,22 @@ class ApiTest(unittest.TestCase):
     def test_grounded_execute(self):
         self.assertEqual(X2Atom().execute(ValueAtom(1.0)), ValueAtom(2.0))
 
-    def test_composite_equals(self):
-        self.assertEqual(C(S("+"), S("1"), S("2")),
-                C(S("+"), S("1"), S("2")))
+    def test_expr_equals(self):
+        self.assertEqual(E(S("+"), S("1"), S("2")),
+                E(S("+"), S("1"), S("2")))
 
-    def test_composite_equals_grounded(self):
-        self.assertEqual(C(X2Atom(), ValueAtom(1.0)),
-                C(X2Atom(), ValueAtom(1.0)))
+    def test_expr_equals_grounded(self):
+        self.assertEqual(E(X2Atom(), ValueAtom(1.0)),
+                E(X2Atom(), ValueAtom(1.0)))
 
-    def test_composite_str(self):
-        self.assertEqual(str(C(X2Atom(), ValueAtom(1.0))), "(*2 1.0)")
+    def test_expr_str(self):
+        self.assertEqual(str(E(X2Atom(), ValueAtom(1.0))), "(*2 1.0)")
 
-    def test_composite_type(self):
-        self.assertEqual(C(X2Atom(), ValueAtom(1.0)).get_type(), Atom.COMPOSITE)
+    def test_expr_type(self):
+        self.assertEqual(E(X2Atom(), ValueAtom(1.0)).get_type(), Atom.EXPR)
 
-    def test_composite_get_children(self):
-        self.assertEqual(C(X2Atom(), ValueAtom(1.0)).get_children(),
+    def test_expr_get_children(self):
+        self.assertEqual(E(X2Atom(), ValueAtom(1.0)).get_children(),
                 [X2Atom(), ValueAtom(1.0)])
 
     def test_groundingspace_get_type(self):
@@ -72,14 +72,14 @@ class ApiTest(unittest.TestCase):
 
     def test_groundingspace_str(self):
         kb = GroundingSpace()
-        kb.add_expr(C(S("+"), S("1"), S("2")))
+        kb.add_atom(E(S("+"), S("1"), S("2")))
         self.assertEqual(str(kb), "(+ 1 2)")
 
     def test_groundingspace_equals(self):
         kb_a = GroundingSpace()
-        kb_a.add_expr(C(S("+"), S("1"), S("2")))
+        kb_a.add_atom(E(S("+"), S("1"), S("2")))
         kb_b = GroundingSpace()
-        kb_b.add_expr(C(S("+"), S("1"), S("2")))
+        kb_b.add_atom(E(S("+"), S("1"), S("2")))
         self.assertEqual(kb_a, kb_b)
 
     def test_textspace_get_type(self):
@@ -93,7 +93,7 @@ class ApiTest(unittest.TestCase):
         text.add_to(kb)
 
         expected = GroundingSpace()
-        expected.add_expr(C(S("+"), S("1"), S("2")))
+        expected.add_atom(E(S("+"), S("1"), S("2")))
         self.assertEqual(kb, expected)
 
 class X2Atom(GroundedAtom):
@@ -101,8 +101,8 @@ class X2Atom(GroundedAtom):
     def __init__(self):
         GroundedAtom.__init__(self)
 
-    def execute(self, expr):
-        return ValueAtom(2 * expr.value);
+    def execute(self, atom):
+        return ValueAtom(2 * atom.value);
 
     def __eq__(self, other):
         return isinstance(other, X2Atom)
