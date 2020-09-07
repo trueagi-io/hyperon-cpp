@@ -29,16 +29,25 @@ public:
     
 };
 
+// Wrap Python object inheriting C++ class into shared_ptr which keeps
+// Python reference until shared pointer is released. This is required when
+// Python object is returned by virtual method defined in C++ class and
+// overriden in Python class. Without inc_ref() Python interpreter releases
+// reference just after Python object is returned to caller.
+template<typename T>
+std::shared_ptr<T> py_shared_ptr(py::object pyobj) {
+    pyobj.inc_ref();
+    return std::shared_ptr<T>(pyobj.cast<T*>(),
+            [](T* p) -> void { py::cast(p).dec_ref(); });
+}
+
 class GroundedExprProxy : public GroundedExpr {
 public:
     virtual ~GroundedExprProxy() { }
 
     ExprPtr execute(ExprPtr args) const override {
         py::object py_result = py_execute(py::cast(args));
-        // pass ownership to C++ smart pointer
-        py_result.inc_ref();
-        return std::shared_ptr<Expr>(py_result.cast<Expr*>(),
-                [](Expr* p) -> void { py::cast(p).dec_ref(); });
+        return py_shared_ptr<Expr>(py_result);
     }
 
     virtual py::object py_execute(py::object args) const {
@@ -61,6 +70,26 @@ public:
     std::string to_string() const override {
         PYBIND11_OVERLOAD_PURE_NAME(std::string, GroundedExprProxy, "__repr__", to_string,);
     }
+};
+
+class GroundingSpaceProxy : public GroundingSpace {
+public:
+    void py_add_expr(py::object expr) {
+        GroundingSpace::add_expr(py_shared_ptr<Expr>(expr));
+    }
+};
+
+class TextSpaceProxy : public TextSpace {
+public:
+
+    void py_register_token(std::string regex, py::object constr) {
+        TextSpace::register_token(std::regex(regex),
+                [constr](std::string str) -> ExprPtr {
+                    py::object py_result = constr(str);
+                    return py_shared_ptr<Expr>(py_result);
+                });
+    }
+
 };
 
 PYBIND11_MODULE(hyperonpy, m) {
@@ -111,18 +140,18 @@ PYBIND11_MODULE(hyperonpy, m) {
         .def(py::init<>())
         .def("execute", &GroundedExprProxy::py_execute);
 
-    py::class_<GroundingSpace, SpaceAPI>(m, "GroundingSpace")
+    py::class_<GroundingSpaceProxy, SpaceAPI>(m, "GroundingSpace")
         .def(py::init<>())
         .def_readonly_static("TYPE", &GroundingSpace::TYPE)
-        .def("add_expr", &GroundingSpace::add_expr, py::keep_alive<1, 2>())
-        .def("interpret_step", &GroundingSpace::interpret_step)
-        .def("__eq__", &GroundingSpace::operator==)
-        .def("__repr__", &GroundingSpace::to_string);
+        .def("add_expr", &GroundingSpaceProxy::py_add_expr)
+        .def("interpret_step", &GroundingSpaceProxy::interpret_step)
+        .def("__eq__", &GroundingSpaceProxy::operator==)
+        .def("__repr__", &GroundingSpaceProxy::to_string);
 
-    py::class_<TextSpace, SpaceAPI>(m, "TextSpace")
+    py::class_<TextSpaceProxy, SpaceAPI>(m, "TextSpace")
         .def(py::init<>())
         .def_readonly_static("TYPE", &TextSpace::TYPE)
-        .def("add_string", &TextSpace::add_string)
-        .def("register_token", &TextSpace::register_token);
+        .def("add_string", &TextSpaceProxy::add_string)
+        .def("register_token", &TextSpaceProxy::py_register_token);
 }
 

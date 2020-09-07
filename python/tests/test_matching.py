@@ -5,9 +5,21 @@ from hyperon import *
 
 class MatchingTest(unittest.TestCase):
 
-    def test_interpreter_grounding_python(self):
+    def test_interpreter_grounded_python(self):
         target = GroundingSpace()
         target.add_expr(C(PlusAtom(), ValueAtom(1), ValueAtom(2)))
+
+        result = target.interpret_step(GroundingSpace())
+
+        self.assertEqual(result, ValueAtom(3))
+
+    def test_interpreter_groundede_text_python(self):
+        text_kb = TextSpace()
+        text_kb.register_token("\\d+(\\.\\d+)?", lambda s : ValueAtom(float(s)))
+        text_kb.register_token("\\+", lambda s : PlusAtom())
+        text_kb.add_string("(+ 2.0 1.0)")
+        target = GroundingSpace()
+        target.add_from_space(text_kb)
 
         result = target.interpret_step(GroundingSpace())
 
