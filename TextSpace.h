@@ -15,21 +15,21 @@ public:
 
     static std::string TYPE;
 
-    using ExprConstr = std::function<ExprPtr(std::string)>;
-    using TokenDescr = std::pair<std::regex, ExprConstr>;
+    using AtomConstr = std::function<AtomPtr(std::string)>;
+    using TokenDescr = std::pair<std::regex, AtomConstr>;
 
     virtual ~TextSpace() { }
 
-    void add_to(SpaceAPI& space) const;
+    void add_to(SpaceAPI& space) const override;
 
-    void add_native(const SpaceAPI* other) {
+    void add_native(const SpaceAPI* other) override {
         throw std::logic_error("Method is not implemented");
     }
 
-    std::string get_type() const { return TYPE; }
+    std::string get_type() const override { return TYPE; }
 
-    void add_string(std::string str_expr) {
-        code.push_back(str_expr);
+    void add_string(std::string str_atom) {
+        code.push_back(str_atom);
     }
 
     // TODO: We could make this method static and allow registering tokens
@@ -37,7 +37,7 @@ public:
     // separate set of tokens in each TextSpace and allow using different
     // parsers in parallel. Last solution looks more flexible. We could also
     // pass list of tokens into TextSpace constructor.
-    void register_token(std::regex regex, ExprConstr constructor) {
+    void register_token(std::regex regex, AtomConstr constructor) {
         tokens.push_back(TokenDescr(regex, constructor));
     }
 
@@ -45,9 +45,9 @@ private:
 
     struct ParseResult;
 
-    ExprPtr find_token(std::string token) const;
+    AtomPtr find_token(std::string token) const;
     ParseResult  recursive_parse(char const* text, char const*& pos) const;
-    void parse(std::string text, std::function<void(ExprPtr)> add) const;
+    void parse(std::string text, std::function<void(AtomPtr)> add) const;
 
     std::vector<std::string> code; 
     std::vector<TokenDescr> tokens;

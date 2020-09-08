@@ -2,13 +2,13 @@ from hyperonpy import (
         Atom,
         S,
         V,
-        C as _C,
+        E as _E,
         GroundedAtom,
         GroundingSpace,
         TextSpace)
 
-def C(*args):
-    return _C(list(args))
+def E(*args):
+    return _E(list(args))
 
 class ValueAtom(GroundedAtom):
 

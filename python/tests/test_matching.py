@@ -7,7 +7,7 @@ class MatchingTest(unittest.TestCase):
 
     def test_interpreter_grounded_python(self):
         target = GroundingSpace()
-        target.add_expr(C(PlusAtom(), ValueAtom(1), ValueAtom(2)))
+        target.add_atom(E(PlusAtom(), ValueAtom(1), ValueAtom(2)))
 
         result = target.interpret_step(GroundingSpace())
 
@@ -25,19 +25,18 @@ class MatchingTest(unittest.TestCase):
 
         self.assertEqual(result, ValueAtom(3))
 
-    @unittest.skip("not implemented yet")
     def test_simple_matching_python(self):
         kb = GroundingSpace()
-        kb.add_expr(C(S("isa"), DeviceAtom("bedroom-lamp"), S("lamp")))
-        kb.add_expr(C(S("isa"), DeviceAtom("kitchen-lamp"), S("lamp")))
+        kb.add_atom(E(S("isa"), DeviceAtom("bedroom-lamp"), S("lamp")))
+        kb.add_atom(E(S("isa"), DeviceAtom("kitchen-lamp"), S("lamp")))
 
         target = GroundingSpace()
-        target.add_expr(C(S(":-"),
-            C(S("isa"), V("x"), S("lamp")),
-            C(CallAtom("turn_on"), V("x"))))
+        target.add_atom(E(ArrowAtom(),
+            E(S("isa"), V("x"), S("lamp")),
+            E(CallAtom("turn_on"), V("x"))))
 
-        target.interpret_step(kb)
-        target.interpret_step(kb)
+        #target.interpret_step(kb)
+        #target.interpret_step(kb)
 
     @unittest.skip("not implemented yet")
     def test_simple_matching_atomese(self):
@@ -66,12 +65,23 @@ class PlusAtom(GroundedAtom):
     def __init__(self):
         GroundedAtom.__init__(self)
 
-    def execute(self, composite):
-        children = composite.get_children()
+    def execute(self, expr):
+        children = expr.get_children()
         return ValueAtom(children[1].value + children[2].value)
 
     def __repr__(self):
         return "+"
+
+class ArrowAtom(GroundedAtom):
+
+    def __init__(self):
+        GroundedAtom.__init__(self)
+
+    def __eq__(self, other):
+        return isinstance(other, ArrowAtom)
+
+    def __repr__(self):
+        return "->"
 
 class DeviceAtom(GroundedAtom):
 

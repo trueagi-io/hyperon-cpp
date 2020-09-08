@@ -1,15 +1,15 @@
 #include "GroundingSpace.h"
 
-// Expression
+// Atom
 
-ExprPtr Expr::INVALID = std::shared_ptr<Expr>(nullptr);
+AtomPtr Atom::INVALID = std::shared_ptr<Atom>(nullptr);
 
-std::string to_string(Expr::Type type) {
-    static std::string names[] = { "S", "G", "C", "V" };
+std::string to_string(Atom::Type type) {
+    static std::string names[] = { "S", "G", "E", "V" };
     return names[type];
 }
 
-bool operator==(std::vector<ExprPtr> const& a, std::vector<ExprPtr> const& b) {
+bool operator==(std::vector<AtomPtr> const& a, std::vector<AtomPtr> const& b) {
     if (a.size() != b.size()) {
         return false;
     }
@@ -21,19 +21,19 @@ bool operator==(std::vector<ExprPtr> const& a, std::vector<ExprPtr> const& b) {
     return true;
 }
 
-std::string to_string(std::vector<ExprPtr> const& exprs, std::string delimiter) {
+std::string to_string(std::vector<AtomPtr> const& atoms, std::string delimiter) {
     std::string str = "";
-    for (auto it = exprs.begin(); it != exprs.end(); ++it) {
-        str += (it == exprs.begin() ? "" : delimiter) + (*it)->to_string();
+    for (auto it = atoms.begin(); it != atoms.end(); ++it) {
+        str += (it == atoms.begin() ? "" : delimiter) + (*it)->to_string();
     }
     return str;
 }
 
-bool CompositeExpr::operator==(Expr const& _other) const { 
-    if (_other.get_type() != COMPOSITE) {
+bool ExprAtom::operator==(Atom const& _other) const { 
+    if (_other.get_type() != EXPR) {
         return false;
     }
-    CompositeExpr const& other = static_cast<CompositeExpr const&>(_other);
+    ExprAtom const& other = static_cast<ExprAtom const&>(_other);
     return children == other.children;
 }
 
@@ -43,63 +43,63 @@ std::string GroundingSpace::TYPE = "GroundingSpace";
 
 struct PlainExprResult {
     bool found;
-    CompositeExprPtr parent;
+    ExprAtomPtr parent;
     int child_index;
-    CompositeExprPtr plain;
+    ExprAtomPtr plain;
     bool has_parent() { return child_index != -1; }
 };
 
-PlainExprResult find_plain_sub_expr(ExprPtr expr) {
-    if (expr->get_type() != Expr::COMPOSITE) {
+PlainExprResult find_plain_sub_expr(AtomPtr atom) {
+    if (atom->get_type() != Atom::EXPR) {
         return { false };
     }
-    CompositeExprPtr composite = std::static_pointer_cast<CompositeExpr>(expr);
-    auto const& children = composite->get_children();
+    ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
+    auto const& children = expr->get_children();
     for (int i = 0; i < children.size(); ++i) {
         PlainExprResult plain = find_plain_sub_expr(children[i]);
         if (plain.found) {
             if (plain.has_parent()) {
                 return plain;
             } else {
-                return { true, composite, i, plain.plain };
+                return { true, expr, i, plain.plain };
             }
         }
     }
-    return { true, composite, -1, composite };
+    return { true, expr, -1, expr };
 }
 
-ExprPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
+AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     if (_kb.get_type() != GroundingSpace::TYPE) {
         throw std::runtime_error("Only " + GroundingSpace::TYPE +
                 " knowledge bases are supported");
     }
     GroundingSpace const& kb = static_cast<GroundingSpace const&>(_kb);
 
-    ExprPtr expr = content.back();
-    if (expr->get_type() != Expr::COMPOSITE) {
+    AtomPtr atom = content.back();
+    if (atom->get_type() != Atom::EXPR) {
         content.pop_back();
-        return expr;
+        return atom;
     }
 
-    PlainExprResult plainExprResult = find_plain_sub_expr(expr);
-    CompositeExprPtr plain_expr = plainExprResult.plain;
-    ExprPtr result = Expr::INVALID;
-    ExprPtr op = plain_expr->get_children()[0];
-    if (op->get_type() == Expr::GROUNDED) {
-        GroundedExpr const* func = static_cast<GroundedExpr const*>(op.get());
+    PlainExprResult plain_expr_result = find_plain_sub_expr(atom);
+    ExprAtomPtr plain_expr = plain_expr_result.plain;
+    AtomPtr result = Atom::INVALID;
+    AtomPtr op = plain_expr->get_children()[0];
+    if (op->get_type() == Atom::GROUNDED) {
+        GroundedAtom const* func = static_cast<GroundedAtom const*>(op.get());
         // TODO: How should we return results of the execution? At the moment they
         // are put into current atomspace. Should we return new child atomspace
         // instead?
         result = func->execute(plain_expr);
     }
 
-    if (!plainExprResult.has_parent()) {
+    if (!plain_expr_result.has_parent()) {
         content.pop_back();
         content.push_back(result);
         return result;
     } else {
-        plainExprResult.parent->get_children()[plainExprResult.child_index] = result;
-        return plainExprResult.parent;
+        plain_expr_result.parent->get_children()[plain_expr_result.child_index] = result;
+        return plain_expr_result.parent;
     }
 }
 
