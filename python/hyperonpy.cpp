@@ -144,6 +144,7 @@ PYBIND11_MODULE(hyperonpy, m) {
         .def_readonly_static("TYPE", &GroundingSpaceProxy::TYPE)
         .def("add_atom", &GroundingSpaceProxy::py_add_atom)
         .def("interpret_step", &GroundingSpaceProxy::interpret_step)
+        .def("match", &GroundingSpaceProxy::match)
         .def("__eq__", &GroundingSpaceProxy::operator==)
         .def("__repr__", &GroundingSpaceProxy::to_string);
 

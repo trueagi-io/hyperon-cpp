@@ -1,5 +1,8 @@
 #include "GroundingSpace.h"
 
+#include <map>
+#include <memory>
+
 // Atom
 
 AtomPtr Atom::INVALID = std::shared_ptr<Atom>(nullptr);
@@ -101,6 +104,137 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
         plain_expr_result.parent->get_children()[plain_expr_result.child_index] = result;
         return plain_expr_result.parent;
     }
+}
+
+class LessVariableAtomPtr {
+public:
+    bool operator()(VariableAtomPtr const& a, VariableAtomPtr const& b) const {
+        return a->get_name() < b->get_name();
+    }
+};
+
+using Bindings = std::map<VariableAtomPtr, AtomPtr, LessVariableAtomPtr>;
+
+struct MatchResult {
+    Bindings a_bindings;
+    Bindings b_bindings;
+};
+
+// FIXME: if variable matched twice it should be checked the second match is
+// equal to the first one.
+static bool match_atoms(AtomPtr a, AtomPtr b, MatchResult& match) {
+    // TODO: it is not clear how should we handle the case when a and b are
+    // both variables. We can check variable name equality and skip binding. We
+    // can add a as binding for b and vice versa.
+    if (b->get_type() == Atom::VARIABLE) {
+        VariableAtomPtr var = std::static_pointer_cast<VariableAtom>(b);
+        match.b_bindings[var] = a;
+        return true;
+    }
+    switch (a->get_type()) {
+        case Atom::SYMBOL:
+        case Atom::GROUNDED:
+            return *a == *b;
+        case Atom::VARIABLE:
+            {
+                VariableAtomPtr var = std::static_pointer_cast<VariableAtom>(a);
+                match.a_bindings[var] = b;
+                return true;
+            }
+        case Atom::EXPR:
+            {
+                if (b->get_type() != Atom::EXPR) {
+                    return false;
+                }
+                std::vector<AtomPtr>& childrenA = std::static_pointer_cast<ExprAtom>(a)->get_children();
+                std::vector<AtomPtr>& childrenB = std::static_pointer_cast<ExprAtom>(b)->get_children();
+                if (childrenA.size() != childrenB.size()) {
+                    return false;
+                }
+                for (int i = 0; i < childrenA.size(); ++i) {
+                    if (!match_atoms(childrenA[i], childrenB[i], match)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        default:
+            throw std::logic_error("Not implemented for type: " +
+                    to_string(a->get_type()));
+    }
+}
+
+static AtomPtr apply_match_to_atom(AtomPtr const& atom, Bindings const& bindings) {
+    switch (atom->get_type()) {
+        case Atom::SYMBOL:
+        case Atom::GROUNDED:
+            return atom;
+        case Atom::VARIABLE:
+            {
+                VariableAtomPtr var = std::static_pointer_cast<VariableAtom>(atom);
+                auto const& pair = bindings.find(var);
+                if (pair != bindings.end()) {
+                    return pair->second;
+                } else {
+                    return atom;
+                }
+            }
+        case Atom::EXPR:
+            {
+                ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
+                std::vector<AtomPtr> children;
+                for (auto const& atom : expr->get_children()) {
+                    AtomPtr applied = apply_match_to_atom(atom, bindings);
+                    children.push_back(applied);
+                }
+                AtomPtr grounded_expr = E(children);
+                return grounded_expr;
+            }
+        default:
+            throw std::logic_error("Not implemented for type: " +
+                    to_string(atom->get_type()));
+    }
+}
+
+static void apply_a_to_b_bindings(MatchResult& match) {
+    Bindings b_bindings;
+    for (auto const& pair : match.b_bindings) {
+        AtomPtr applied = apply_match_to_atom(pair.second, match.a_bindings);
+        b_bindings[pair.first] = applied;
+    }
+    match.b_bindings = b_bindings;
+}
+
+static void apply_match_to_templ(GroundingSpace& result,
+        std::vector<AtomPtr> const& templ, MatchResult const& match) {
+    for (auto const& atom : templ) {
+        result.add_atom(apply_match_to_atom(atom, match.b_bindings));
+    }
+}
+
+GroundingSpace* GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ) const {
+    if (_pattern.get_type() != GroundingSpace::TYPE) {
+        throw std::runtime_error("_pattern is expected to be GroundingSpace");
+    }
+    GroundingSpace const& pattern = static_cast<GroundingSpace const&>(_pattern);
+    if (_templ.get_type() != GroundingSpace::TYPE) {
+        throw std::runtime_error("_templ is expected to be GroundingSpace");
+    }
+    GroundingSpace const& templ = static_cast<GroundingSpace const&>(_templ);
+    if (pattern.content.size() != 1) {
+        throw std::logic_error("_pattern with more than one clause is not supported");
+    }
+    AtomPtr pattern_atom = pattern.content[0];
+    std::unique_ptr<GroundingSpace> result_space(new GroundingSpace());
+    for (auto const& kb_atom : content) {
+        MatchResult match_result;
+        if (!match_atoms(kb_atom, pattern_atom, match_result)) {
+            continue;
+        }
+        apply_a_to_b_bindings(match_result);
+        apply_match_to_templ(*result_space.get(), templ.content, match_result);
+    }
+    return result_space.release();
 }
 
 bool GroundingSpace::operator==(SpaceAPI const& _other) const {

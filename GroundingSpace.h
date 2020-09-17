@@ -98,6 +98,8 @@ inline AtomPtr V(std::string name) {
     return std::make_shared<VariableAtom>(name);
 }
 
+using VariableAtomPtr = std::shared_ptr<VariableAtom>;
+
 class GroundedAtom : public Atom {
 public:
     virtual ~GroundedAtom() { }
@@ -146,7 +148,12 @@ public:
 
     // TODO: Which operations should we add into SpaceAPI to make
     // interpret_step space implementation agnostic?
+    // If GroundedAtom will be cross-space interface and its execute method
+    // will input and return SpaceAPI then interpret_step could be implemented
+    // on a SpaceAPI level.
     AtomPtr interpret_step(SpaceAPI const& kb);
+    // TODO: Discuss moving into SpaceAPI as match_to replacement
+    GroundingSpace* match(SpaceAPI const& pattern, SpaceAPI const& templ) const;
 
     bool operator==(SpaceAPI const& space) const;
     bool operator!=(SpaceAPI const& other) const { return !(*this == other); }

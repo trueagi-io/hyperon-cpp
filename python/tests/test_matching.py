@@ -31,7 +31,8 @@ class MatchingTest(unittest.TestCase):
         kb.add_atom(E(S("isa"), DeviceAtom("kitchen-lamp"), S("lamp")))
 
         target = GroundingSpace()
-        target.add_atom(E(ArrowAtom(),
+        target.add_atom(E(MatchAtom(),
+            ValueAtom(kb),
             E(S("isa"), V("x"), S("lamp")),
             E(CallAtom("turn_on"), V("x"))))
 
@@ -41,11 +42,12 @@ class MatchingTest(unittest.TestCase):
     @unittest.skip("not implemented yet")
     def test_simple_matching_atomese(self):
         kb = atomese('''
+            (:- kb self)
             (isa dev:kitchen-lamp lamp)
             (isa dev:bedroom-lamp lamp)
         ''')
         target = atomese('''
-            (:- (isa $x lamp) (call:turn_on $x))
+            (match (kb) (isa $x lamp) (call:turn_on $x))
         ''')
         target.interpret_step(kb)
         target.interpret_step(kb)
@@ -53,6 +55,10 @@ class MatchingTest(unittest.TestCase):
 def atomese(program):
     kb = GroundingSpace()
     text = TextSpace()
+    text.register_token(re.compile("self"),
+            lambda token: ValueAtom(kb))
+    text.register_token(re.compile("match"),
+            lambda token: MatchAtom())
     text.register_token(re.compile("dev:\\S+"),
             lambda token: DeviceAtom(token[4:]))
     text.register_token(re.compile("call:\\S+"),
@@ -69,25 +75,40 @@ class PlusAtom(GroundedAtom):
         children = expr.get_children()
         return ValueAtom(children[1].value + children[2].value)
 
+    def __eq__(self, other):
+        return isinstance(other, PlusAtom)
+
     def __repr__(self):
         return "+"
 
-class ArrowAtom(GroundedAtom):
+class MatchAtom(GroundedAtom):
 
     def __init__(self):
         GroundedAtom.__init__(self)
 
+    def execute(self, expr):
+        children = expr.get_children()
+        space = children[1].value
+        pattern = GroundingSpace()
+        pattern.add_atom(children[2])
+        templ = GroundingSpace()
+        templ.add_atom(children[3])
+        return space.match(pattern, templ)
+
     def __eq__(self, other):
-        return isinstance(other, ArrowAtom)
+        return isinstance(other, MatchAtom)
 
     def __repr__(self):
-        return "->"
+        return "match"
 
 class DeviceAtom(GroundedAtom):
 
     def __init__(self, name):
         GroundedAtom.__init__(self)
         self.name = name
+
+    def turn_on(self):
+        print("light is on")
 
     def __eq__(self, other):
         if isinstance(other, DeviceAtom):
