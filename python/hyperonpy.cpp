@@ -35,47 +35,47 @@ public:
 // overriden in Python class. Without inc_ref() Python interpreter releases
 // reference just after Python object is returned to caller.
 template<typename T>
-std::shared_ptr<T> py_shared_ptr(py::object pyobj) {
+std::shared_ptr<T> py_shared_ptr(py::handle pyobj) {
     pyobj.inc_ref();
     return std::shared_ptr<T>(pyobj.cast<T*>(),
             [](T* p) -> void { py::cast(p).dec_ref(); });
 }
 
-class GroundedAtomProxy : public GroundedAtom {
+std::vector<AtomPtr> py_list(py::list atoms) {
+    std::vector<AtomPtr> content;
+    for (py::handle item : atoms) {
+        content.push_back(py_shared_ptr<Atom>(item));
+    }
+    return content;
+}
+
+class PyAtom : public Atom {
 public:
-    virtual ~GroundedAtomProxy() { }
-
-    AtomPtr execute(AtomPtr args) const override {
-        py::object py_result = py_execute(py::cast(args));
-        return py_shared_ptr<Atom>(py_result);
-    }
-
-    virtual py::object py_execute(py::object args) const {
-        throw std::runtime_error("Operation is not supported");
-    }
-};
-
-class PyGroundedAtom : public GroundedAtomProxy {
-public:
-    using GroundedAtomProxy::GroundedAtomProxy;
-
-    py::object py_execute(py::object args) const override {
-        PYBIND11_OVERLOAD_NAME(py::object, GroundedAtomProxy, "execute", py_execute, args);
-    }
+    using Atom::Atom;
 
     bool operator==(Atom const& other) const override {
-        PYBIND11_OVERLOAD_PURE_NAME(bool, GroundedAtomProxy, "__eq__", operator==, other);
+        PYBIND11_OVERLOAD_PURE_NAME(bool, Atom, "__eq__", operator==, other);
     }
 
     std::string to_string() const override {
-        PYBIND11_OVERLOAD_PURE_NAME(std::string, GroundedAtomProxy, "__repr__", to_string,);
+        PYBIND11_OVERLOAD_PURE_NAME(std::string, Atom, "__repr__", to_string,);
     }
 };
 
-class GroundingSpaceProxy : public GroundingSpace {
+class PyGroundedAtom : public GroundedAtom {
 public:
-    void py_add_atom(py::object atom) {
-        GroundingSpace::add_atom(py_shared_ptr<Atom>(atom));
+    using GroundedAtom::GroundedAtom;
+
+    void execute(GroundingSpace const* args, GroundingSpace* result) const override {
+        PYBIND11_OVERLOAD(void, GroundedAtom, execute, args, result);
+    }
+
+    bool operator==(Atom const& other) const override {
+        PYBIND11_OVERLOAD_PURE_NAME(bool, GroundedAtom, "__eq__", operator==, other);
+    }
+
+    std::string to_string() const override {
+        PYBIND11_OVERLOAD_PURE_NAME(std::string, GroundedAtom, "__repr__", to_string,);
     }
 };
 
@@ -99,7 +99,7 @@ PYBIND11_MODULE(hyperonpy, m) {
         .def("add_native", &SpaceAPI::add_native)
         .def("get_type", &SpaceAPI::get_type);
 
-    py::class_<Atom, std::shared_ptr<Atom>> atom(m, "Atom");
+    py::class_<Atom, PyAtom, std::shared_ptr<Atom>> atom(m, "Atom");
 
     atom.def("get_type", &Atom::get_type)
         .def("__eq__", &Atom::operator==)
@@ -132,22 +132,29 @@ PYBIND11_MODULE(hyperonpy, m) {
         .def(py::init<std::vector<AtomPtr>>())
         .def("get_children", &ExprAtom::get_children);
 
-    // FIXME: replace keep_alive by py_shared_ptr
-    m.def("E", (AtomPtr (*)(std::vector<AtomPtr>))&E, py::keep_alive<0, 1>());
+    m.def("E", [](py::list atoms) -> AtomPtr { return E(py_list(atoms)); });
 
-    py::class_<GroundedAtomProxy, PyGroundedAtom, std::shared_ptr<GroundedAtomProxy>, Atom>(m, "GroundedAtom")
+    py::class_<GroundedAtom, PyGroundedAtom, std::shared_ptr<GroundedAtom>, Atom>(m, "GroundedAtom")
         .def(py::init<>())
-        .def("execute", &GroundedAtomProxy::py_execute);
+        .def("execute", &GroundedAtom::execute)
+        .def("__eq__", &GroundedAtom::operator==)
+        .def("__repr__", &GroundedAtom::to_string);
 
-    py::class_<GroundingSpaceProxy, SpaceAPI>(m, "GroundingSpace")
+    py::class_<GroundingSpace, SpaceAPI>(m, "GroundingSpace")
         .def(py::init<>())
-        .def_readonly_static("TYPE", &GroundingSpaceProxy::TYPE)
-        .def("add_atom", &GroundingSpaceProxy::py_add_atom)
-        .def("interpret_step", &GroundingSpaceProxy::interpret_step)
-        .def("match", &GroundingSpaceProxy::match)
-        .def("__eq__", &GroundingSpaceProxy::operator==)
-        .def("__repr__", &GroundingSpaceProxy::to_string);
-
+        .def(py::init([](py::list atoms) -> GroundingSpace* {
+                        return new GroundingSpace(py_list(atoms));
+                    }))
+        .def_readonly_static("TYPE", &GroundingSpace::TYPE)
+        .def("add_atom", [](GroundingSpace* self, py::object atom) -> void {
+                    self->add_atom(py_shared_ptr<Atom>(atom));
+                })
+        .def("interpret_step", &GroundingSpace::interpret_step)
+        .def("match", &GroundingSpace::match)
+        .def("get_content", &GroundingSpace::get_content)
+        .def("__eq__", &GroundingSpace::operator==)
+        .def("__repr__", &GroundingSpace::to_string);
+    
     py::class_<TextSpaceProxy, SpaceAPI>(m, "TextSpace")
         .def(py::init<>())
         .def_readonly_static("TYPE", &TextSpaceProxy::TYPE)

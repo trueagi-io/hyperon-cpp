@@ -9,9 +9,9 @@ class MatchingTest(unittest.TestCase):
         target = GroundingSpace()
         target.add_atom(E(PlusAtom(), ValueAtom(1), ValueAtom(2)))
 
-        result = target.interpret_step(GroundingSpace())
+        target.interpret_step(GroundingSpace())
 
-        self.assertEqual(result, ValueAtom(3))
+        self.assertEqual(target, GroundingSpace([ValueAtom(3)]))
 
     def test_interpreter_groundede_text_python(self):
         text_kb = TextSpace()
@@ -21,9 +21,11 @@ class MatchingTest(unittest.TestCase):
         target = GroundingSpace()
         target.add_from_space(text_kb)
 
-        result = target.interpret_step(GroundingSpace())
+        target.interpret_step(GroundingSpace())
 
-        self.assertEqual(result, ValueAtom(3))
+        expected = GroundingSpace()
+        expected.add_atom(ValueAtom(3))
+        self.assertEqual(target, expected)
 
     def test_simple_matching_python(self):
         kb = GroundingSpace()
@@ -36,8 +38,9 @@ class MatchingTest(unittest.TestCase):
             E(S("isa"), V("x"), S("lamp")),
             E(CallAtom("turn_on"), V("x"))))
 
-        #target.interpret_step(kb)
-        #target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
 
     @unittest.skip("not implemented yet")
     def test_simple_matching_atomese(self):
@@ -49,6 +52,7 @@ class MatchingTest(unittest.TestCase):
         target = atomese('''
             (match (kb) (isa $x lamp) (call:turn_on $x))
         ''')
+        target.interpret_step(kb)
         target.interpret_step(kb)
         target.interpret_step(kb)
 
@@ -71,9 +75,9 @@ class PlusAtom(GroundedAtom):
     def __init__(self):
         GroundedAtom.__init__(self)
 
-    def execute(self, expr):
-        children = expr.get_children()
-        return ValueAtom(children[1].value + children[2].value)
+    def execute(self, args, result):
+        content = args.get_content()
+        result.add_atom(ValueAtom(content[1].value + content[2].value))
 
     def __eq__(self, other):
         return isinstance(other, PlusAtom)
@@ -86,14 +90,14 @@ class MatchAtom(GroundedAtom):
     def __init__(self):
         GroundedAtom.__init__(self)
 
-    def execute(self, expr):
-        children = expr.get_children()
-        space = children[1].value
+    def execute(self, args, result):
+        content = args.get_content()
+        space = content[1].value
         pattern = GroundingSpace()
-        pattern.add_atom(children[2])
+        pattern.add_atom(content[2])
         templ = GroundingSpace()
-        templ.add_atom(children[3])
-        return space.match(pattern, templ)
+        templ.add_atom(content[3])
+        space.match(pattern, templ, result)
 
     def __eq__(self, other):
         return isinstance(other, MatchAtom)
@@ -124,7 +128,8 @@ class CallAtom(GroundedAtom):
         GroundedAtom.__init__(self)
         self.method_name = method_name
 
-    def execute(self, device):
+    def execute(self, args, result):
+        device = args.get_content()[1]
         method = getattr(device, self.method_name)
         method()
 

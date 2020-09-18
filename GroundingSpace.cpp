@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+//#include <iostream>
 
 // Atom
 
@@ -53,12 +54,17 @@ struct PlainExprResult {
 };
 
 PlainExprResult find_plain_sub_expr(AtomPtr atom) {
+    //std::clog << "find_plain_sub_expr: " << atom->to_string() << std::endl;
     if (atom->get_type() != Atom::EXPR) {
         return { false };
     }
     ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
     auto const& children = expr->get_children();
     for (int i = 0; i < children.size(); ++i) {
+        // If sub expr contains a variable it is not evaluatable
+        if (children[i]->get_type() == Atom::VARIABLE) {
+            return { false };
+        }
         PlainExprResult plain = find_plain_sub_expr(children[i]);
         if (plain.found) {
             if (plain.has_parent()) {
@@ -71,7 +77,7 @@ PlainExprResult find_plain_sub_expr(AtomPtr atom) {
     return { true, expr, -1, expr };
 }
 
-AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
+void GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     if (_kb.get_type() != GroundingSpace::TYPE) {
         throw std::runtime_error("Only " + GroundingSpace::TYPE +
                 " knowledge bases are supported");
@@ -81,28 +87,42 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     AtomPtr atom = content.back();
     if (atom->get_type() != Atom::EXPR) {
         content.pop_back();
-        return atom;
+        content.push_back(atom);
+        return;
     }
 
     PlainExprResult plain_expr_result = find_plain_sub_expr(atom);
     ExprAtomPtr plain_expr = plain_expr_result.plain;
-    AtomPtr result = Atom::INVALID;
+    //std::clog << "plain_expr found: " << plain_expr->to_string() << std::endl;
+    GroundingSpace result;
     AtomPtr op = plain_expr->get_children()[0];
     if (op->get_type() == Atom::GROUNDED) {
         GroundedAtom const* func = static_cast<GroundedAtom const*>(op.get());
         // TODO: How should we return results of the execution? At the moment they
         // are put into current atomspace. Should we return new child atomspace
         // instead?
-        result = func->execute(plain_expr);
+        GroundingSpace args(plain_expr->get_children());
+        func->execute(&args, &result);
+    } else {
+        throw std::logic_error("This case is not implemented yet, plain_expr: " +
+                plain_expr->to_string());
     }
 
     if (!plain_expr_result.has_parent()) {
         content.pop_back();
-        content.push_back(result);
-        return result;
+        for (auto & atom : result.get_content()) {
+            content.push_back(atom);
+        }
+        return;
     } else {
-        plain_expr_result.parent->get_children()[plain_expr_result.child_index] = result;
-        return plain_expr_result.parent;
+        // FIXME: implement by duplicating root of the plain_expr_result, and
+        // replacing plain_expr by each item of content and push it back to the
+        // content collection.
+        if (result.get_content().size() != 1) {
+            throw std::logic_error("This case is not implemented yet");
+        }
+        plain_expr_result.parent->get_children()[plain_expr_result.child_index] = result.get_content()[0];
+        return;
     }
 }
 
@@ -212,7 +232,7 @@ static void apply_match_to_templ(GroundingSpace& result,
     }
 }
 
-GroundingSpace* GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ) const {
+void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, GroundingSpace& result) const {
     if (_pattern.get_type() != GroundingSpace::TYPE) {
         throw std::runtime_error("_pattern is expected to be GroundingSpace");
     }
@@ -225,16 +245,14 @@ GroundingSpace* GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& 
         throw std::logic_error("_pattern with more than one clause is not supported");
     }
     AtomPtr pattern_atom = pattern.content[0];
-    std::unique_ptr<GroundingSpace> result_space(new GroundingSpace());
     for (auto const& kb_atom : content) {
         MatchResult match_result;
         if (!match_atoms(kb_atom, pattern_atom, match_result)) {
             continue;
         }
         apply_a_to_b_bindings(match_result);
-        apply_match_to_templ(*result_space.get(), templ.content, match_result);
+        apply_match_to_templ(result, templ.content, match_result);
     }
-    return result_space.release();
 }
 
 bool GroundingSpace::operator==(SpaceAPI const& _other) const {

@@ -25,11 +25,12 @@ public:
         GroundingSpace templ;
         templ.add_atom(V("x"));
 
-        std::unique_ptr<GroundingSpace> result(kb.match(pattern, templ));
+        GroundingSpace result;
+        kb.match(pattern, templ, result);
 
         GroundingSpace expected;
         expected.add_atom(E({ S("*"), S("5"), E({ S("-"), S("5"), S("1") }) }));
-        TS_ASSERT(expected == *result);
+        TS_ASSERT(expected == result);
     }
 
     void test_match_data() {
@@ -41,12 +42,13 @@ public:
         GroundingSpace templ;
         templ.add_atom(V("x"));
 
-        std::unique_ptr<GroundingSpace> result(kb.match(pattern, templ));
+        GroundingSpace result;
+        kb.match(pattern, templ, result);
 
         GroundingSpace expected;
         expected.add_atom(S("kitchen-lamp"));
         expected.add_atom(S("bedroom-lamp"));
-        TS_ASSERT(expected == *result);
+        TS_ASSERT(expected == result);
     }
 
 };

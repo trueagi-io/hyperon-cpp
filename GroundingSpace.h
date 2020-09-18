@@ -100,10 +100,12 @@ inline AtomPtr V(std::string name) {
 
 using VariableAtomPtr = std::shared_ptr<VariableAtom>;
 
+class GroundingSpace;
+
 class GroundedAtom : public Atom {
 public:
     virtual ~GroundedAtom() { }
-    virtual AtomPtr execute(AtomPtr args) const {
+    virtual void execute(GroundingSpace const* args, GroundingSpace* result) const {
         throw std::runtime_error("Operation is not supported");
     }
 
@@ -134,6 +136,10 @@ public:
 
     static std::string TYPE;
 
+    GroundingSpace() { }
+    GroundingSpace(std::initializer_list<AtomPtr> content) : content(content) { }
+    GroundingSpace(std::vector<AtomPtr> content) : content(content) { }
+
     virtual ~GroundingSpace() { }
 
     void add_native(const SpaceAPI* other) override {
@@ -151,9 +157,10 @@ public:
     // If GroundedAtom will be cross-space interface and its execute method
     // will input and return SpaceAPI then interpret_step could be implemented
     // on a SpaceAPI level.
-    AtomPtr interpret_step(SpaceAPI const& kb);
+    void interpret_step(SpaceAPI const& kb);
     // TODO: Discuss moving into SpaceAPI as match_to replacement
-    GroundingSpace* match(SpaceAPI const& pattern, SpaceAPI const& templ) const;
+    void match(SpaceAPI const& pattern, SpaceAPI const& templ, GroundingSpace& space) const;
+    std::vector<AtomPtr> const& get_content() const { return content; }
 
     bool operator==(SpaceAPI const& space) const;
     bool operator!=(SpaceAPI const& other) const { return !(*this == other); }
