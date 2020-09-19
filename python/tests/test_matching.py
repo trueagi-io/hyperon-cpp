@@ -5,6 +5,10 @@ from hyperon import *
 
 class MatchingTest(unittest.TestCase):
 
+    def setUp(self):
+        self.devices = {}
+        self.spaces = {}
+
     def test_interpreter_grounded_python(self):
         target = GroundingSpace()
         target.add_atom(E(PlusAtom(), ValueAtom(1), ValueAtom(2)))
@@ -29,25 +33,27 @@ class MatchingTest(unittest.TestCase):
 
     def test_simple_matching_python(self):
         kb = GroundingSpace()
-        kb.add_atom(E(S("isa"), DeviceAtom("bedroom-lamp"), S("lamp")))
-        kb.add_atom(E(S("isa"), DeviceAtom("kitchen-lamp"), S("lamp")))
+        kb.add_atom(E(S("isa"), self._get_device("bedroom-lamp"), S("lamp")))
+        kb.add_atom(E(S("isa"), self._get_device("kitchen-lamp"), S("lamp")))
 
         target = GroundingSpace()
         target.add_atom(E(MatchAtom(),
             ValueAtom(kb),
             E(S("isa"), V("x"), S("lamp")),
             E(CallAtom("turn_on"), V("x"))))
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
 
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
+        self.assertTrue(self._get_device("kitchen-lamp").is_on)
+        self.assertTrue(self._get_device("bedroom-lamp").is_on)
 
     def test_simple_matching_atomese(self):
-        kb = atomese('kb', '''
+        kb = self._atomese('kb', '''
             (isa dev:kitchen-lamp lamp)
             (isa dev:bedroom-lamp lamp)
         ''')
-        target = atomese('target', '''
+        target = self._atomese('target', '''
             (match (spaces kb) (isa $x lamp) (call:turn_on $x))
         ''')
         target.interpret_step(kb)
@@ -55,19 +61,25 @@ class MatchingTest(unittest.TestCase):
         target.interpret_step(kb)
         target.interpret_step(kb)
 
-spaces = {}
+        self.assertTrue(self._get_device("kitchen-lamp").is_on)
+        self.assertTrue(self._get_device("bedroom-lamp").is_on)
 
-def atomese(name, program):
-    kb = GroundingSpace()
-    text = TextSpace()
-    text.register_token("spaces", lambda token: SpacesAtom(spaces))
-    text.register_token("match", lambda token: MatchAtom())
-    text.register_token("dev:\\S+", lambda token: DeviceAtom(token[4:]))
-    text.register_token("call:\\S+", lambda token: CallAtom(token[5:]))
-    text.add_string(program)
-    kb.add_from_space(text)
-    spaces[name] = kb
-    return kb
+    def _get_device(self, name):
+        if not name in self.devices:
+            self.devices[name] = DeviceAtom(name)
+        return self.devices[name]
+
+    def _atomese(self, name, program):
+        kb = GroundingSpace()
+        text = TextSpace()
+        text.register_token("spaces", lambda token: SpacesAtom(self.spaces))
+        text.register_token("match", lambda token: MatchAtom())
+        text.register_token("dev:\\S+", lambda token: self._get_device(token[4:]))
+        text.register_token("call:\\S+", lambda token: CallAtom(token[5:]))
+        text.add_string(program)
+        kb.add_from_space(text)
+        self.spaces[name] = kb
+        return kb
 
 class SpacesAtom(GroundedAtom):
 
@@ -126,8 +138,10 @@ class DeviceAtom(GroundedAtom):
     def __init__(self, name):
         GroundedAtom.__init__(self)
         self.name = name
+        self.is_on = False
 
     def turn_on(self):
+        self.is_on = True
         print("light is on")
 
     def __eq__(self, other):
