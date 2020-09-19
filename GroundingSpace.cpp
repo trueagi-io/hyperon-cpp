@@ -104,7 +104,8 @@ void GroundingSpace::interpret_step(SpaceAPI const& _kb) {
         GroundingSpace args(plain_expr->get_children());
         func->execute(&args, &result);
     } else {
-        throw std::logic_error("This case is not implemented yet, plain_expr: " +
+        throw std::logic_error("This case is not implemented yet: "
+                "plain expression found is not executable: " +
                 plain_expr->to_string());
     }
 
@@ -119,7 +120,8 @@ void GroundingSpace::interpret_step(SpaceAPI const& _kb) {
         // replacing plain_expr by each item of content and push it back to the
         // content collection.
         if (result.get_content().size() != 1) {
-            throw std::logic_error("This case is not implemented yet");
+            throw std::logic_error("This case is not implemented yet: "
+                    "result size is not equal to 1");
         }
         plain_expr_result.parent->get_children()[plain_expr_result.child_index] = result.get_content()[0];
         return;

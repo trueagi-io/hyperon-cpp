@@ -42,33 +42,49 @@ class MatchingTest(unittest.TestCase):
         target.interpret_step(kb)
         target.interpret_step(kb)
 
-    @unittest.skip("not implemented yet")
     def test_simple_matching_atomese(self):
-        kb = atomese('''
-            (:- kb self)
+        kb = atomese('kb', '''
             (isa dev:kitchen-lamp lamp)
             (isa dev:bedroom-lamp lamp)
         ''')
-        target = atomese('''
-            (match (kb) (isa $x lamp) (call:turn_on $x))
+        target = atomese('target', '''
+            (match (spaces kb) (isa $x lamp) (call:turn_on $x))
         ''')
+        target.interpret_step(kb)
         target.interpret_step(kb)
         target.interpret_step(kb)
         target.interpret_step(kb)
 
-def atomese(program):
+spaces = {}
+
+def atomese(name, program):
     kb = GroundingSpace()
     text = TextSpace()
-    text.register_token(re.compile("self"),
-            lambda token: ValueAtom(kb))
-    text.register_token(re.compile("match"),
-            lambda token: MatchAtom())
-    text.register_token(re.compile("dev:\\S+"),
-            lambda token: DeviceAtom(token[4:]))
-    text.register_token(re.compile("call:\\S+"),
-            lambda token: CallAtom(token[5:]))
+    text.register_token("spaces", lambda token: SpacesAtom(spaces))
+    text.register_token("match", lambda token: MatchAtom())
+    text.register_token("dev:\\S+", lambda token: DeviceAtom(token[4:]))
+    text.register_token("call:\\S+", lambda token: CallAtom(token[5:]))
+    text.add_string(program)
     kb.add_from_space(text)
+    spaces[name] = kb
     return kb
+
+class SpacesAtom(GroundedAtom):
+
+    def __init__(self, spaces):
+        GroundedAtom.__init__(self)
+        self.spaces = spaces
+
+    def execute(self, args, result):
+        content = args.get_content()
+        name = content[1].get_symbol();
+        result.add_atom(ValueAtom(self.spaces[name]))
+
+    def __eq__(self, other):
+        return isinstance(other, SpacesAtom)
+
+    def __repr__(self):
+        return "spaces"
 
 class PlusAtom(GroundedAtom):
 
@@ -129,8 +145,8 @@ class CallAtom(GroundedAtom):
         self.method_name = method_name
 
     def execute(self, args, result):
-        device = args.get_content()[1]
-        method = getattr(device, self.method_name)
+        obj = args.get_content()[1]
+        method = getattr(obj, self.method_name)
         method()
 
     def __eq__(self, other):

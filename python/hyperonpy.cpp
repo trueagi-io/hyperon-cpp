@@ -79,15 +79,21 @@ public:
     }
 };
 
-class TextSpaceProxy : public TextSpace {
+struct PyHandleHolder {
+    py::handle obj;
+    PyHandleHolder(py::handle obj) : obj(obj) { obj.inc_ref(); }
+    ~PyHandleHolder() { obj.dec_ref(); }
+};
+
+class PyAtomConstr {
 public:
-    void py_register_token(std::string regex, py::object constr) {
-        TextSpace::register_token(std::regex(regex),
-                [constr](std::string str) -> AtomPtr {
-                    py::object py_result = constr(str);
-                    return py_shared_ptr<Atom>(py_result);
-                });
+    PyAtomConstr(py::object lambda) : lambda(std::make_shared<PyHandleHolder>(lambda)) { }
+    AtomPtr operator()(std::string arg) {
+        py::object atom = lambda->obj(arg);
+        return py_shared_ptr<Atom>(atom);
     }
+private:
+    std::shared_ptr<PyHandleHolder> lambda;
 };
 
 PYBIND11_MODULE(hyperonpy, m) {
@@ -155,10 +161,13 @@ PYBIND11_MODULE(hyperonpy, m) {
         .def("__eq__", &GroundingSpace::operator==)
         .def("__repr__", &GroundingSpace::to_string);
     
-    py::class_<TextSpaceProxy, SpaceAPI>(m, "TextSpace")
+    py::class_<TextSpace, SpaceAPI>(m, "TextSpace")
         .def(py::init<>())
-        .def_readonly_static("TYPE", &TextSpaceProxy::TYPE)
-        .def("add_string", &TextSpaceProxy::add_string)
-        .def("register_token", &TextSpaceProxy::py_register_token);
+        .def_readonly_static("TYPE", &TextSpace::TYPE)
+        .def("add_string", &TextSpace::add_string)
+        .def("register_token",
+                [](TextSpace* self, std::string regex, py::object constr) -> void {
+                    self->register_token(std::regex(regex), PyAtomConstr(constr));
+                });
 }
 
