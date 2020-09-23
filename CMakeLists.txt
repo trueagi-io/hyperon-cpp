@@ -12,3 +12,12 @@ ADD_CUSTOM_TARGET(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)
 ADD_SUBDIRECTORY(tests)
 
 ADD_SUBDIRECTORY(python)
+
+INSTALL(TARGETS
+    hyperon)
+
+INSTALL(FILES
+    SpaceAPI.h
+    GroundingSpace.h
+    TextSpace.h
+    DESTINATION "include/hyperon")
