@@ -2,8 +2,8 @@
 #include <memory>
 #include <iostream>
 
-#include "GroundingSpace.h"
-#include "TextSpace.h"
+#include <hyperon/GroundingSpace.h>
+#include <hyperon/TextSpace.h>
 
 class FloatAtom : public ValueAtom<float> {
 public:

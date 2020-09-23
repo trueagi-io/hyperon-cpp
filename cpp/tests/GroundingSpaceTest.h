@@ -1,6 +1,6 @@
 #include <cxxtest/TestSuite.h>
 
-#include "GroundingSpace.h"
+#include <hyperon/GroundingSpace.h>
 
 class GroundingSpaceTest : public CxxTest::TestSuite {
 public:

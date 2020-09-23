@@ -1,9 +1,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "SpaceAPI.h"
-#include "GroundingSpace.h"
-#include "TextSpace.h"
+#include <hyperon/SpaceAPI.h>
+#include <hyperon/GroundingSpace.h>
+#include <hyperon/TextSpace.h>
 
 namespace py = pybind11;
 
