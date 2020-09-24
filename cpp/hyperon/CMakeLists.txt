@@ -1,7 +1,8 @@
 ADD_LIBRARY(hyperon SHARED GroundingSpace.cpp TextSpace.cpp)
 
 INSTALL(TARGETS
-    hyperon)
+    hyperon
+    DESTINATION "lib")
 
 INSTALL(FILES
     SpaceAPI.h
