@@ -2,8 +2,8 @@
 #include <memory>
 #include <iostream>
 
-#include "GroundingSpace.h"
-#include "TextSpace.h"
+#include <hyperon/GroundingSpace.h>
+#include <hyperon/TextSpace.h>
 
 class FloatAtom : public ValueAtom<float> {
 public:
@@ -22,12 +22,11 @@ public:
 class PlusAtom : public GroundedAtom {
 public:
     virtual ~PlusAtom() { }
-    AtomPtr execute(AtomPtr _args) const override {
-        ExprAtomPtr args = std::dynamic_pointer_cast<ExprAtom>(_args);
-        FloatAtom const* a = dynamic_cast<FloatAtom const*>(args->get_children()[1].get());
-        FloatAtom const* b = dynamic_cast<FloatAtom const*>(args->get_children()[2].get());
+    void execute(GroundingSpace const* args, GroundingSpace* result) const override {
+        FloatAtom const* a = dynamic_cast<FloatAtom const*>(args->get_content()[1].get());
+        FloatAtom const* b = dynamic_cast<FloatAtom const*>(args->get_content()[2].get());
         float c = a->get() + b->get();
-        return std::make_shared<FloatAtom>(c);
+        result->add_atom(std::make_shared<FloatAtom>(c));
     }
     bool operator==(Atom const& _other) const override { 
         return dynamic_cast<PlusAtom const*>(&_other);
@@ -39,11 +38,13 @@ class GroundedSymbolTest : public CxxTest::TestSuite {
 public:
 
     void test_simple_grounded_operation() {
-        GroundingSpace empty_kb;
         GroundingSpace targets;
         targets.add_atom(E({std::make_shared<PlusAtom>(), std::make_shared<FloatAtom>(1), std::make_shared<FloatAtom>(2)}));
-        AtomPtr result = targets.interpret_step(empty_kb);
-        TS_ASSERT(*result == FloatAtom(3));
+
+        GroundingSpace empty_kb;
+        targets.interpret_step(empty_kb);
+
+        TS_ASSERT(targets == GroundingSpace({ std::make_shared<FloatAtom>(3) }));
     }
 
     void test_adding_new_grounded_types() {
@@ -61,9 +62,9 @@ public:
         targets.add_from_space(text_kb);
 
         GroundingSpace empty_kb;
-        AtomPtr result = targets.interpret_step(empty_kb);
+        targets.interpret_step(empty_kb);
         
-        TS_ASSERT(*result == FloatAtom(3));
+        TS_ASSERT(targets == GroundingSpace({ std::make_shared<FloatAtom>(3) }));
     }
 
     // FIXME: test is not passed yet
@@ -91,9 +92,9 @@ public:
         GroundingSpace targets;
         targets.add_atom(V("x"));
         targets.add_atom(V("y"));
-        AtomPtr y = targets.interpret_step(kb);
-        TS_ASSERT(*y == StringAtom("12"));
-        AtomPtr x = targets.interpret_step(kb);
-        TS_ASSERT(*x == FloatAtom(3));
+        targets.interpret_step(kb);
+        targets.interpret_step(kb);
+        TS_ASSERT(targets == GroundingSpace({ std::make_shared<FloatAtom>(3),
+                    std::make_shared<StringAtom>("12") }));
     }
 };
