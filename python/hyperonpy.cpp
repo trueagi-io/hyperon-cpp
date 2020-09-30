@@ -4,6 +4,7 @@
 #include <hyperon/SpaceAPI.h>
 #include <hyperon/GroundingSpace.h>
 #include <hyperon/TextSpace.h>
+#include <hyperon/logger.h>
 
 namespace py = pybind11;
 
@@ -169,5 +170,15 @@ PYBIND11_MODULE(hyperonpy, m) {
                 [](TextSpace* self, std::string regex, py::object constr) -> void {
                     self->register_token(std::regex(regex), PyAtomConstr(constr));
                 });
+
+    py::class_<Logger> logger(m, "Logger");
+    logger.def_static("setLevel", &Logger::setLevel);
+
+    py::enum_<Logger::Level>(logger, "Level")
+        .value("ERROR", Logger::Level::ERROR)
+        .value("INFO", Logger::Level::INFO)
+        .value("DEBUG", Logger::Level::DEBUG)
+        .value("TRACE", Logger::Level::TRACE)
+        .export_values();
 }
 

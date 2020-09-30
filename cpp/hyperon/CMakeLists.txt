@@ -1,4 +1,4 @@
-ADD_LIBRARY(hyperon SHARED GroundingSpace.cpp TextSpace.cpp)
+ADD_LIBRARY(hyperon SHARED GroundingSpace.cpp TextSpace.cpp logger.cpp)
 
 INSTALL(TARGETS
     hyperon
@@ -8,4 +8,5 @@ INSTALL(FILES
     SpaceAPI.h
     GroundingSpace.h
     TextSpace.h
+    logger.h
     DESTINATION "include/hyperon")

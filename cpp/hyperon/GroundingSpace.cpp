@@ -2,7 +2,8 @@
 
 #include <map>
 #include <memory>
-//#include <iostream>
+
+#include "logger.h"
 
 // Atom
 
@@ -54,7 +55,7 @@ struct PlainExprResult {
 };
 
 PlainExprResult find_plain_sub_expr(AtomPtr atom) {
-    //std::clog << "find_plain_sub_expr: " << atom->to_string() << std::endl;
+    clog::debug << "find_plain_sub_expr: " << atom->to_string() << std::endl;
     if (atom->get_type() != Atom::EXPR) {
         return { false };
     }
@@ -93,7 +94,7 @@ void GroundingSpace::interpret_step(SpaceAPI const& _kb) {
 
     PlainExprResult plain_expr_result = find_plain_sub_expr(atom);
     ExprAtomPtr plain_expr = plain_expr_result.plain;
-    //std::clog << "plain_expr found: " << plain_expr->to_string() << std::endl;
+    clog::debug << "plain_expr found: " << plain_expr->to_string() << std::endl;
     GroundingSpace result;
     AtomPtr op = plain_expr->get_children()[0];
     if (op->get_type() == Atom::GROUNDED) {
@@ -246,6 +247,8 @@ void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, Gro
     if (pattern.content.size() != 1) {
         throw std::logic_error("_pattern with more than one clause is not supported");
     }
+    clog::debug << "match: pattern: " << pattern.to_string() <<
+        ", templ: " << templ.to_string() << std::endl;
     AtomPtr pattern_atom = pattern.content[0];
     for (auto const& kb_atom : content) {
         MatchResult match_result;
