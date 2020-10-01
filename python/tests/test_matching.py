@@ -44,6 +44,9 @@ class MatchingTest(unittest.TestCase):
         target.interpret_step(kb)
         target.interpret_step(kb)
         target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
@@ -60,9 +63,44 @@ class MatchingTest(unittest.TestCase):
         target.interpret_step(kb)
         target.interpret_step(kb)
         target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
+
+    def test_nested_matching(self):
+        Logger.setLevel(Logger.TRACE)
+        kb = self._atomese('kb', '''
+            (isa Fred frog)
+            (isa frog green)
+        ''')
+        target = self._atomese('target', '''
+            (match (spaces kb) (isa $x $y)
+                (q match (spaces kb) (isa $y $z) (isa $x $z)))
+        ''')
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+        target.interpret_step(kb)
+
+        expected = GroundingSpace()
+        expected.add_atom(E(S('isa'), S('Fred'), S('green')))
+        self.assertEqual(target, expected)
 
     def _get_device(self, name):
         if not name in self.devices:
@@ -124,7 +162,13 @@ class MatchAtom(GroundedAtom):
         pattern = GroundingSpace()
         pattern.add_atom(content[2])
         templ = GroundingSpace()
-        templ.add_atom(content[3])
+        # FIXME: hack to make both quoted and unquoted expression work
+        templ_op = content[3].get_children()[0]
+        if templ_op.get_type() == Atom.SYMBOL and templ_op.get_symbol() == 'q':
+            quoted = content[3].get_children()[1:]
+            templ.add_atom(E(*quoted))
+        else:
+            templ.add_atom(content[3])
         space.match(pattern, templ, result)
 
     def __eq__(self, other):

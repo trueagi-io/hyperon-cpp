@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+#include <algorithm>
 
 #include "logger.h"
 
@@ -46,36 +47,107 @@ bool ExprAtom::operator==(Atom const& _other) const {
 
 std::string GroundingSpace::TYPE = "GroundingSpace";
 
-struct PlainExprResult {
-    bool found;
+struct SubExpression {
+    SubExpression(ExprAtomPtr expr, ExprAtomPtr parent, int index)
+        : expr(expr) , parent(parent), index(index) { }
+    ExprAtomPtr expr;
     ExprAtomPtr parent;
-    int child_index;
-    ExprAtomPtr plain;
-    bool has_parent() { return child_index != -1; }
+    int index;
 };
 
-PlainExprResult find_plain_sub_expr(AtomPtr atom) {
-    clog::debug << "find_plain_sub_expr: " << atom->to_string() << std::endl;
-    if (atom->get_type() != Atom::EXPR) {
-        return { false };
+class ExpressionSimplifier : public GroundedAtom {
+public:
+
+    ExpressionSimplifier(ExprAtomPtr expr) : full(expr) { parse(expr, nullptr, 0); }
+    ExpressionSimplifier(ExprAtomPtr full, std::vector<SubExpression> subs)
+        : full(full), subs(subs) {}
+
+    void execute(GroundingSpace const* args, GroundingSpace* result) const override;
+
+    bool operator==(Atom const& _other) const override {
+        ExpressionSimplifier const* other = dynamic_cast<ExpressionSimplifier const*>(&_other);
+        return other && *full == *(other->full);
     }
-    ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
+
+    std::string to_string() const override {
+        return "(simplify " + full->to_string() + ")";
+    }
+
+private:
+    void parse(ExprAtomPtr expr, ExprAtomPtr parent, int index);
+    std::shared_ptr<ExpressionSimplifier> pop_sub() const;
+
+    ExprAtomPtr full;
+    std::vector<SubExpression> subs;
+};
+
+void ExpressionSimplifier::parse(ExprAtomPtr expr, ExprAtomPtr parent, int index) {
+    subs.emplace_back(expr, parent, index);
     auto const& children = expr->get_children();
     for (int i = 0; i < children.size(); ++i) {
-        // If sub expr contains a variable it is not evaluatable
-        if (children[i]->get_type() == Atom::VARIABLE) {
-            return { false };
-        }
-        PlainExprResult plain = find_plain_sub_expr(children[i]);
-        if (plain.found) {
-            if (plain.has_parent()) {
-                return plain;
-            } else {
-                return { true, expr, i, plain.plain };
-            }
+        AtomPtr child = children[i];
+        if (child->get_type() == Atom::EXPR) {
+            parse(std::dynamic_pointer_cast<ExprAtom>(child), expr, i);
         }
     }
-    return { true, expr, -1, expr };
+}
+
+static void handle_plain_expression(ExprAtomPtr expr, GroundingSpace& result) {
+    AtomPtr op = expr->get_children()[0];
+    if (op->get_type() == Atom::GROUNDED) {
+        GroundedAtom const* func = static_cast<GroundedAtom const*>(op.get());
+        // TODO: How should we return results of the execution? At the moment they
+        // are put into current atomspace. Should we return new child atomspace
+        // instead?
+        // FIXME: if grounded atom has variables don't execute it
+        bool has_variables = std::any_of(expr->get_children().cbegin(),
+                expr->get_children().cend(),
+                [](auto const& child) -> bool { return child->get_type() == Atom::VARIABLE; });
+        if (!has_variables) {
+            GroundingSpace args(expr->get_children());
+            func->execute(&args, &result);
+        } else {
+            result.add_atom(expr);
+        }
+    } else {
+        result.add_atom(expr);
+    }
+}
+
+void ExpressionSimplifier::execute(GroundingSpace const* args, GroundingSpace* result) const {
+    SubExpression const& sub = subs.back();
+    if (!sub.parent) {
+        clog::debug << "ExpressionSimplifier.execute(): full expression: " << sub.expr->to_string() << std::endl;
+        handle_plain_expression(sub.expr, *result);
+    } else {
+        clog::debug << "ExpressionSimplifier.execute(): sub expression: " << sub.expr->to_string() << std::endl;
+        GroundingSpace tmp;
+        handle_plain_expression(sub.expr, tmp);
+        // FIXME: implement by duplicating root of the plain_expr_result, and
+        // replacing plain_expr by each item of content and push it back to the
+        // content collection.
+        if (tmp.get_content().size() != 1) {
+            throw std::logic_error("This case is not implemented yet: "
+                    "result size is not equal to 1");
+        }
+        sub.parent->get_children()[sub.index] = tmp.get_content()[0];
+        result->add_atom(E({ pop_sub() }));
+    }
+}
+
+std::shared_ptr<ExpressionSimplifier> ExpressionSimplifier::pop_sub() const {
+    std::vector<SubExpression> copy = subs;
+    copy.pop_back();
+    return std::make_shared<ExpressionSimplifier>(full, copy);
+}
+
+static bool is_plain(ExprAtomPtr expr) {
+    for (auto const& child : expr->get_children()) {
+        if (child->get_type() == Atom::EXPR) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void GroundingSpace::interpret_step(SpaceAPI const& _kb) {
@@ -86,46 +158,19 @@ void GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     GroundingSpace const& kb = static_cast<GroundingSpace const&>(_kb);
 
     AtomPtr atom = content.back();
+    content.pop_back();
+    clog::debug << "interpret_step(): atom on top: " << atom->to_string() << std::endl;
     if (atom->get_type() != Atom::EXPR) {
-        content.pop_back();
-        content.push_back(atom);
         return;
     }
 
-    PlainExprResult plain_expr_result = find_plain_sub_expr(atom);
-    ExprAtomPtr plain_expr = plain_expr_result.plain;
-    clog::debug << "plain_expr found: " << plain_expr->to_string() << std::endl;
-    GroundingSpace result;
-    AtomPtr op = plain_expr->get_children()[0];
-    if (op->get_type() == Atom::GROUNDED) {
-        GroundedAtom const* func = static_cast<GroundedAtom const*>(op.get());
-        // TODO: How should we return results of the execution? At the moment they
-        // are put into current atomspace. Should we return new child atomspace
-        // instead?
-        GroundingSpace args(plain_expr->get_children());
-        func->execute(&args, &result);
+    ExprAtomPtr expr = std::dynamic_pointer_cast<ExprAtom>(atom);
+    if (is_plain(expr)) {
+        clog::trace << "interpret_step(): handle plain expression" << std::endl;
+        handle_plain_expression(expr, *this);
     } else {
-        throw std::logic_error("This case is not implemented yet: "
-                "plain expression found is not executable: " +
-                plain_expr->to_string());
-    }
-
-    if (!plain_expr_result.has_parent()) {
-        content.pop_back();
-        for (auto & atom : result.get_content()) {
-            content.push_back(atom);
-        }
-        return;
-    } else {
-        // FIXME: implement by duplicating root of the plain_expr_result, and
-        // replacing plain_expr by each item of content and push it back to the
-        // content collection.
-        if (result.get_content().size() != 1) {
-            throw std::logic_error("This case is not implemented yet: "
-                    "result size is not equal to 1");
-        }
-        plain_expr_result.parent->get_children()[plain_expr_result.child_index] = result.get_content()[0];
-        return;
+        clog::trace << "interpret_step(): prepare to simplify expression" << std::endl;
+        content.push_back(E({std::make_shared<ExpressionSimplifier>(expr)}));
     }
 }
 
