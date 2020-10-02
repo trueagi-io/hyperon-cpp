@@ -92,7 +92,7 @@ void ExpressionSimplifier::parse(ExprAtomPtr expr, ExprAtomPtr parent, int index
     }
 }
 
-static void handle_plain_expression(ExprAtomPtr expr, GroundingSpace& result) {
+static bool handle_plain_expression(ExprAtomPtr expr, GroundingSpace& result) {
     AtomPtr op = expr->get_children()[0];
     if (op->get_type() == Atom::GROUNDED) {
         GroundedAtom const* func = static_cast<GroundedAtom const*>(op.get());
@@ -110,11 +110,13 @@ static void handle_plain_expression(ExprAtomPtr expr, GroundingSpace& result) {
             func->execute(args, result);
             clog::trace << "handle_plain_expression(): executing atom result: \""
                 << result.to_string() << "\"" << std::endl;
-        } else {
-            result.add_atom(expr);
+            return true;
         }
     } else {
-        result.add_atom(expr);
+        // FIXME: implement matching with kb like in version1/examples/example4.cpp
+        clog::debug << "handle_plain_expression(): omit non-interpretable expression: "
+            << expr->to_string() << std::endl;
+        return false;
     }
 }
 
@@ -122,11 +124,15 @@ void ExpressionSimplifier::execute(GroundingSpace const& args, GroundingSpace& r
     SubExpression const& sub = subs.back();
     if (!sub.parent) {
         clog::debug << "ExpressionSimplifier.execute(): full expression: " << sub.expr->to_string() << std::endl;
-        handle_plain_expression(sub.expr, result);
+        if (!handle_plain_expression(sub.expr, result)) {
+            result.add_atom(sub.expr);
+        }
     } else {
         clog::debug << "ExpressionSimplifier.execute(): sub expression: " << sub.expr->to_string() << std::endl;
         GroundingSpace tmp;
-        handle_plain_expression(sub.expr, tmp);
+        if (!handle_plain_expression(sub.expr, tmp)) {
+            tmp.add_atom(sub.expr);
+        }
         // FIXME: implement by duplicating root of the plain_expr_result, and
         // replacing plain_expr by each item of content and push it back to the
         // content collection.
@@ -277,10 +283,12 @@ static void apply_a_to_b_bindings(MatchResult& match) {
     match.b_bindings = b_bindings;
 }
 
-static void apply_match_to_templ(GroundingSpace& result,
+static void apply_match_to_templ(GroundingSpace& results,
         std::vector<AtomPtr> const& templ, MatchResult const& match) {
     for (auto const& atom : templ) {
-        result.add_atom(apply_match_to_atom(atom, match.b_bindings));
+        AtomPtr result = apply_match_to_atom(atom, match.b_bindings);
+        clog::trace << "apply_match_to_templ(): result: " << result->to_string() << std::endl;
+        results.add_atom(result);
     }
 }
 

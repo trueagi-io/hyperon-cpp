@@ -96,7 +96,6 @@ class MatchingTest(unittest.TestCase):
         target.interpret_step(kb)
         target.interpret_step(kb)
         target.interpret_step(kb)
-        target.interpret_step(kb)
 
         expected = GroundingSpace()
         expected.add_atom(E(S('isa'), S('Fred'), S('green')))
