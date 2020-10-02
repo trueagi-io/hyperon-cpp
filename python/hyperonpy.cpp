@@ -67,7 +67,10 @@ class PyGroundedAtom : public GroundedAtom {
 public:
     using GroundedAtom::GroundedAtom;
 
-    void execute(GroundingSpace const* args, GroundingSpace* result) const override {
+    void execute(GroundingSpace const& args, GroundingSpace& result) const override {
+        // workaround for a pybind11 issue https://github.com/pybind/pybind11/issues/2033
+        // see https://stackoverflow.com/a/59331026/14016260 for explanation
+        py::object dummy = py::cast(&result);
         PYBIND11_OVERLOAD(void, GroundedAtom, execute, args, result);
     }
 

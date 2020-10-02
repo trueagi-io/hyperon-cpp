@@ -62,7 +62,7 @@ public:
     ExpressionSimplifier(ExprAtomPtr full, std::vector<SubExpression> subs)
         : full(full), subs(subs) {}
 
-    void execute(GroundingSpace const* args, GroundingSpace* result) const override;
+    void execute(GroundingSpace const& args, GroundingSpace& result) const override;
 
     bool operator==(Atom const& _other) const override {
         ExpressionSimplifier const* other = dynamic_cast<ExpressionSimplifier const*>(&_other);
@@ -105,7 +105,11 @@ static void handle_plain_expression(ExprAtomPtr expr, GroundingSpace& result) {
                 [](auto const& child) -> bool { return child->get_type() == Atom::VARIABLE; });
         if (!has_variables) {
             GroundingSpace args(expr->get_children());
-            func->execute(&args, &result);
+            clog::trace << "handle_plain_expression(): executing atom args: \""
+                << args.to_string() << "\"" << std::endl;
+            func->execute(args, result);
+            clog::trace << "handle_plain_expression(): executing atom result: \""
+                << result.to_string() << "\"" << std::endl;
         } else {
             result.add_atom(expr);
         }
@@ -114,11 +118,11 @@ static void handle_plain_expression(ExprAtomPtr expr, GroundingSpace& result) {
     }
 }
 
-void ExpressionSimplifier::execute(GroundingSpace const* args, GroundingSpace* result) const {
+void ExpressionSimplifier::execute(GroundingSpace const& args, GroundingSpace& result) const {
     SubExpression const& sub = subs.back();
     if (!sub.parent) {
         clog::debug << "ExpressionSimplifier.execute(): full expression: " << sub.expr->to_string() << std::endl;
-        handle_plain_expression(sub.expr, *result);
+        handle_plain_expression(sub.expr, result);
     } else {
         clog::debug << "ExpressionSimplifier.execute(): sub expression: " << sub.expr->to_string() << std::endl;
         GroundingSpace tmp;
@@ -131,7 +135,7 @@ void ExpressionSimplifier::execute(GroundingSpace const* args, GroundingSpace* r
                     "result size is not equal to 1");
         }
         sub.parent->get_children()[sub.index] = tmp.get_content()[0];
-        result->add_atom(E({ pop_sub() }));
+        result.add_atom(E({ pop_sub() }));
     }
 }
 

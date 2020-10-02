@@ -22,11 +22,11 @@ public:
 class PlusAtom : public GroundedAtom {
 public:
     virtual ~PlusAtom() { }
-    void execute(GroundingSpace const* args, GroundingSpace* result) const override {
-        FloatAtom const* a = dynamic_cast<FloatAtom const*>(args->get_content()[1].get());
-        FloatAtom const* b = dynamic_cast<FloatAtom const*>(args->get_content()[2].get());
+    void execute(GroundingSpace const& args, GroundingSpace& result) const override {
+        FloatAtom const* a = dynamic_cast<FloatAtom const*>(args.get_content()[1].get());
+        FloatAtom const* b = dynamic_cast<FloatAtom const*>(args.get_content()[2].get());
         float c = a->get() + b->get();
-        result->add_atom(std::make_shared<FloatAtom>(c));
+        result.add_atom(std::make_shared<FloatAtom>(c));
     }
     bool operator==(Atom const& _other) const override { 
         return dynamic_cast<PlusAtom const*>(&_other);

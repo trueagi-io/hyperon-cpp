@@ -105,7 +105,7 @@ class GroundingSpace;
 class GroundedAtom : public Atom {
 public:
     virtual ~GroundedAtom() { }
-    virtual void execute(GroundingSpace const* args, GroundingSpace* result) const {
+    virtual void execute(GroundingSpace const& args, GroundingSpace& result) const {
         throw std::runtime_error("Operation is not supported");
     }
 
