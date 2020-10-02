@@ -58,9 +58,11 @@ struct SubExpression {
 class ExpressionSimplifier : public GroundedAtom {
 public:
 
-    ExpressionSimplifier(ExprAtomPtr expr) : full(expr) { parse(expr, nullptr, 0); }
-    ExpressionSimplifier(ExprAtomPtr full, std::vector<SubExpression> subs)
-        : full(full), subs(subs) {}
+    ExpressionSimplifier(GroundingSpace const& kb, ExprAtomPtr expr)
+        : kb(kb), full(expr) { parse(expr, nullptr, 0); }
+    ExpressionSimplifier(GroundingSpace const& kb, ExprAtomPtr full,
+            std::vector<SubExpression> subs)
+        : kb(kb), full(full), subs(subs) {}
 
     void execute(GroundingSpace const& args, GroundingSpace& result) const override;
 
@@ -70,13 +72,14 @@ public:
     }
 
     std::string to_string() const override {
-        return "(simplify " + full->to_string() + ")";
+        return "simplify " + full->to_string();
     }
 
 private:
     void parse(ExprAtomPtr expr, ExprAtomPtr parent, int index);
-    std::shared_ptr<ExpressionSimplifier> pop_sub() const;
+    std::shared_ptr<ExpressionSimplifier> pop_sub(SubExpression sub, AtomPtr replacement) const;
 
+    GroundingSpace const& kb;
     ExprAtomPtr full;
     std::vector<SubExpression> subs;
 };
@@ -92,14 +95,14 @@ void ExpressionSimplifier::parse(ExprAtomPtr expr, ExprAtomPtr parent, int index
     }
 }
 
-static bool handle_plain_expression(ExprAtomPtr expr, GroundingSpace& result) {
+static bool handle_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, GroundingSpace& result) {
     AtomPtr op = expr->get_children()[0];
     if (op->get_type() == Atom::GROUNDED) {
         GroundedAtom const* func = static_cast<GroundedAtom const*>(op.get());
         // TODO: How should we return results of the execution? At the moment they
         // are put into current atomspace. Should we return new child atomspace
         // instead?
-        // FIXME: if grounded atom has variables don't execute it
+        // FIXME: temporary hack: if grounded atom has variables don't execute it
         bool has_variables = std::any_of(expr->get_children().cbegin(),
                 expr->get_children().cend(),
                 [](auto const& child) -> bool { return child->get_type() == Atom::VARIABLE; });
@@ -112,11 +115,19 @@ static bool handle_plain_expression(ExprAtomPtr expr, GroundingSpace& result) {
                 << result.to_string() << "\"" << std::endl;
             return true;
         }
-    } else {
-        // FIXME: implement matching with kb like in version1/examples/example4.cpp
-        clog::debug << "handle_plain_expression(): omit non-interpretable expression: "
-            << expr->to_string() << std::endl;
         return false;
+    } else {
+        clog::debug << "handle_plain_expression(): looking for expression in KB: "
+            << expr->to_string() << std::endl;
+        GroundingSpace pattern({ E({ S("="), expr, V("X") }) });
+        GroundingSpace templ({ V("X") });
+        GroundingSpace tmp;
+        kb.match(pattern, templ, tmp);
+        clog::trace << "handle_plain_expression(): matching result: "<< tmp.to_string() << std::endl;
+        for (auto const& item : tmp.get_content()) {
+            result.add_atom(item);
+        }
+        return !tmp.get_content().empty();
     }
 }
 
@@ -124,31 +135,45 @@ void ExpressionSimplifier::execute(GroundingSpace const& args, GroundingSpace& r
     SubExpression const& sub = subs.back();
     if (!sub.parent) {
         clog::debug << "ExpressionSimplifier.execute(): full expression: " << sub.expr->to_string() << std::endl;
-        if (!handle_plain_expression(sub.expr, result)) {
+        if (!handle_plain_expression(kb, sub.expr, result)) {
             result.add_atom(sub.expr);
         }
     } else {
         clog::debug << "ExpressionSimplifier.execute(): sub expression: " << sub.expr->to_string() << std::endl;
         GroundingSpace tmp;
-        if (!handle_plain_expression(sub.expr, tmp)) {
+        bool success = handle_plain_expression(kb, sub.expr, tmp);
+        if (!success) {
             tmp.add_atom(sub.expr);
         }
         // FIXME: implement by duplicating root of the plain_expr_result, and
         // replacing plain_expr by each item of content and push it back to the
         // content collection.
-        if (tmp.get_content().size() != 1) {
+        if (tmp.get_content().size() == 0) {
             throw std::logic_error("This case is not implemented yet: "
-                    "result size is not equal to 1");
+                    "no results");
         }
-        sub.parent->get_children()[sub.index] = tmp.get_content()[0];
-        result.add_atom(E({ pop_sub() }));
+        if (success) {
+            AtomPtr replacement = tmp.get_content()[0];
+            sub.parent->get_children()[sub.index] = replacement;
+            result.add_atom(E({ pop_sub(sub, replacement) }));
+        } else {
+            result.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
+        }
     }
 }
 
-std::shared_ptr<ExpressionSimplifier> ExpressionSimplifier::pop_sub() const {
+std::shared_ptr<ExpressionSimplifier> ExpressionSimplifier::pop_sub(SubExpression sub, AtomPtr tail) const {
+    // TODO: replace copy by reusing array with variable containing size
     std::vector<SubExpression> copy = subs;
     copy.pop_back();
-    return std::make_shared<ExpressionSimplifier>(full, copy);
+    if (tail && tail->get_type() == Atom::EXPR) {
+        ExprAtomPtr expr = std::dynamic_pointer_cast<ExprAtom>(tail);
+        auto ptr = std::make_shared<ExpressionSimplifier>(kb, full, copy);
+        ptr->parse(expr, sub.parent, sub.index);
+        return ptr;
+    } else {
+        return std::make_shared<ExpressionSimplifier>(kb, full, copy);
+    }
 }
 
 static bool is_plain(ExprAtomPtr expr) {
@@ -177,10 +202,10 @@ void GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     ExprAtomPtr expr = std::dynamic_pointer_cast<ExprAtom>(atom);
     if (is_plain(expr)) {
         clog::trace << "interpret_step(): handle plain expression" << std::endl;
-        handle_plain_expression(expr, *this);
+        handle_plain_expression(kb, expr, *this);
     } else {
         clog::trace << "interpret_step(): prepare to simplify expression" << std::endl;
-        content.push_back(E({std::make_shared<ExpressionSimplifier>(expr)}));
+        content.push_back(E({std::make_shared<ExpressionSimplifier>(kb, expr)}));
     }
 }
 
