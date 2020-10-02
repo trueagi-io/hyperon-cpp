@@ -3,3 +3,4 @@ __pycache__
 /.vim-project
 /compile_commands.json
 /.clangd
+*.swp
