@@ -2,6 +2,7 @@ import unittest
 import re
 
 from hyperon import *
+from common import inteprep_until_result
 
 class MatchingTest(unittest.TestCase):
 
@@ -13,9 +14,9 @@ class MatchingTest(unittest.TestCase):
         target = GroundingSpace()
         target.add_atom(E(PlusAtom(), ValueAtom(1), ValueAtom(2)))
 
-        target.interpret_step(GroundingSpace())
+        result = inteprep_until_result(target, GroundingSpace())
 
-        self.assertEqual(target, GroundingSpace([ValueAtom(3)]))
+        self.assertEqual(result, ValueAtom(3))
 
     def test_interpreter_groundede_text_python(self):
         text_kb = TextSpace()
@@ -25,13 +26,12 @@ class MatchingTest(unittest.TestCase):
         target = GroundingSpace()
         target.add_from_space(text_kb)
 
-        target.interpret_step(GroundingSpace())
+        result = inteprep_until_result(target, GroundingSpace())
 
-        expected = GroundingSpace()
-        expected.add_atom(ValueAtom(3))
-        self.assertEqual(target, expected)
+        self.assertEqual(result, ValueAtom(3))
 
     def test_simple_matching_python(self):
+        Logger.setLevel(Logger.TRACE)
         kb = GroundingSpace()
         kb.add_atom(E(S("isa"), self._get_device("bedroom-lamp"), S("lamp")))
         kb.add_atom(E(S("isa"), self._get_device("kitchen-lamp"), S("lamp")))
@@ -41,12 +41,8 @@ class MatchingTest(unittest.TestCase):
             ValueAtom(kb),
             E(S("isa"), V("x"), S("lamp")),
             E(CallAtom("turn_on"), V("x"))))
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
+
+        result = inteprep_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
@@ -59,19 +55,13 @@ class MatchingTest(unittest.TestCase):
         target = self._atomese('target', '''
             (match (spaces kb) (isa $x lamp) (call:turn_on $x))
         ''')
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
+
+        result = inteprep_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
 
     def test_nested_matching(self):
-        Logger.setLevel(Logger.TRACE)
         kb = self._atomese('kb', '''
             (isa Fred frog)
             (isa frog green)
@@ -80,26 +70,10 @@ class MatchingTest(unittest.TestCase):
             (match (spaces kb) (isa $x $y)
                 (q match (spaces kb) (isa $y $z) (isa $x $z)))
         ''')
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
-        target.interpret_step(kb)
 
-        expected = GroundingSpace()
-        expected.add_atom(E(S('isa'), S('Fred'), S('green')))
-        self.assertEqual(target, expected)
+        actual = inteprep_until_result(target, kb)
+
+        self.assertEqual(actual, E(S('isa'), S('Fred'), S('green')))
 
     def _get_device(self, name):
         if not name in self.devices:

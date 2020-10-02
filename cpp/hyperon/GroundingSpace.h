@@ -157,7 +157,7 @@ public:
     // If GroundedAtom will be cross-space interface and its execute method
     // will input and return SpaceAPI then interpret_step could be implemented
     // on a SpaceAPI level.
-    void interpret_step(SpaceAPI const& kb);
+    AtomPtr interpret_step(SpaceAPI const& kb);
     // TODO: Discuss moving into SpaceAPI as match_to replacement
     void match(SpaceAPI const& pattern, SpaceAPI const& templ, GroundingSpace& space) const;
     std::vector<AtomPtr> const& get_content() const { return content; }

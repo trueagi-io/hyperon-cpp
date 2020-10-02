@@ -3,6 +3,8 @@
 #include <hyperon/GroundingSpace.h>
 #include <hyperon/logger.h>
 
+#include "common.h"
+
 template<typename T>
 class BinaryOpAtom : public GroundedAtom {
 public:
@@ -113,10 +115,29 @@ public:
         GroundingSpace target;
         target.add_atom(E({ S("f"), NewIntAtom(5) }));
 
-        std::cout << "test" << std::endl;
-        while (!target.get_content().empty()) {
-            target.interpret_step(kb);
-        }
+        AtomPtr result = interpret_until_result(target, kb);
+
+        TS_ASSERT(*NewIntAtom(120) == *result);
+    }
+
+    void test_interpret_plain_expr_twice() {
+        Logger::setLevel(Logger::TRACE);
+        GroundingSpace kb;
+        kb.add_atom(E({ S("="), E({ S("f"), NewIntAtom(0) }), NewIntAtom(1) }));
+        kb.add_atom(E({ S("="),
+                        E({ S("f"), V("n") }),
+                        E({ NewMulAtom(),
+                            E({ S("f"), E({ NewSubAtom(), V("n"), NewIntAtom(1) }) }),
+                            V("n") }) }));
+        GroundingSpace target;
+        target.add_atom(E({ S("f"), NewIntAtom(3) }));
+        target.add_atom(E({ S("f"), NewIntAtom(5) }));
+
+        AtomPtr result = interpret_until_result(target, kb);
+        TS_ASSERT(*NewIntAtom(120) == *result);
+        result = interpret_until_result(target, kb);
+        TS_ASSERT(*NewIntAtom(6) == *result);
+
     }
 
 };
