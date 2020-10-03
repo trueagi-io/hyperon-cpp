@@ -5,9 +5,9 @@
 #include <hyperon/logger.h>
 #include <hyperon/GroundingSpace.h>
 #include <hyperon/TextSpace.h>
-#include <hyperon/GroundedArithmetic.h>
 
 #include "common.h"
+#include "GroundedArithmetic.h"
 
 class GroundedSymbolTest : public CxxTest::TestSuite {
 public:

@@ -2,9 +2,9 @@
 
 #include <hyperon/logger.h>
 #include <hyperon/GroundingSpace.h>
-#include <hyperon/GroundedArithmetic.h>
 
 #include "common.h"
+#include "GroundedArithmetic.h"
 
 class GroundingSpaceTest : public CxxTest::TestSuite {
 public:
