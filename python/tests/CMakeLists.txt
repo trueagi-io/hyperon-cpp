@@ -12,3 +12,4 @@ ENDMACRO()
 
 ADD_NOSETESTS("test_api.py")
 ADD_NOSETESTS("test_matching.py")
+ADD_NOSETESTS("test_smart_home.py")
