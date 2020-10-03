@@ -4,7 +4,7 @@
 #include <memory>
 #include <algorithm>
 
-#include "logger.h"
+#include "logger_priv.h"
 
 // Atom
 

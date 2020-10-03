@@ -1,9 +1,9 @@
-#include "logger.h"
+#include "logger_priv.h"
 
-Logger::Level Logger::maxLevel = ERROR;
+Logger::Level Logger::level = ERROR;
 
-Logger clog::error(Logger::ERROR);
-Logger clog::info(Logger::INFO);
-Logger clog::debug(Logger::DEBUG);
-Logger clog::trace(Logger::TRACE);
+LoggerImpl clog::error(Logger::ERROR);
+LoggerImpl clog::info(Logger::INFO);
+LoggerImpl clog::debug(Logger::DEBUG);
+LoggerImpl clog::trace(Logger::TRACE);
 
