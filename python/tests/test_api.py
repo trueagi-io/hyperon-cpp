@@ -42,7 +42,7 @@ class ApiTest(unittest.TestCase):
 
     def test_grounded_execute_default(self):
         with self.assertRaises(RuntimeError) as e:
-            ValueAtom(1.0).execute(None, None)
+            ValueAtom(1.0).execute(GroundingSpace(), GroundingSpace())
         self.assertEqual(str(e.exception), "Operation is not supported")
 
     def test_grounded_execute(self):

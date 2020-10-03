@@ -1,9 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <hyperon/SpaceAPI.h>
-#include <hyperon/GroundingSpace.h>
-#include <hyperon/TextSpace.h>
+#include <hyperon/hyperon.h>
 
 namespace py = pybind11;
 
@@ -66,7 +64,10 @@ class PyGroundedAtom : public GroundedAtom {
 public:
     using GroundedAtom::GroundedAtom;
 
-    void execute(GroundingSpace const* args, GroundingSpace* result) const override {
+    void execute(GroundingSpace const& args, GroundingSpace& result) const override {
+        // workaround for a pybind11 issue https://github.com/pybind/pybind11/issues/2033
+        // see https://stackoverflow.com/a/59331026/14016260 for explanation
+        py::object dummy = py::cast(&result);
         PYBIND11_OVERLOAD(void, GroundedAtom, execute, args, result);
     }
 
@@ -169,5 +170,15 @@ PYBIND11_MODULE(hyperonpy, m) {
                 [](TextSpace* self, std::string regex, py::object constr) -> void {
                     self->register_token(std::regex(regex), PyAtomConstr(constr));
                 });
+
+    py::class_<Logger> logger(m, "Logger");
+    logger.def_static("setLevel", &Logger::setLevel);
+
+    py::enum_<Logger::Level>(logger, "Level")
+        .value("ERROR", Logger::Level::ERROR)
+        .value("INFO", Logger::Level::INFO)
+        .value("DEBUG", Logger::Level::DEBUG)
+        .value("TRACE", Logger::Level::TRACE)
+        .export_values();
 }
 

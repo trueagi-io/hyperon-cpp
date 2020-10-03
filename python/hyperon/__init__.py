@@ -5,7 +5,8 @@ from hyperonpy import (
         E as _E,
         GroundedAtom,
         GroundingSpace,
-        TextSpace)
+        TextSpace,
+        Logger)
 
 def E(*args):
     return _E(list(args))

@@ -1,6 +1,10 @@
 #include <cxxtest/TestSuite.h>
 
+#include <hyperon/logger.h>
 #include <hyperon/GroundingSpace.h>
+
+#include "common.h"
+#include "GroundedArithmetic.h"
 
 class GroundingSpaceTest : public CxxTest::TestSuite {
 public:
@@ -49,6 +53,43 @@ public:
         expected.add_atom(S("kitchen-lamp"));
         expected.add_atom(S("bedroom-lamp"));
         TS_ASSERT(expected == result);
+    }
+
+    void test_interpret_plain_expr() {
+        Logger::setLevel(Logger::TRACE);
+        GroundingSpace kb;
+        kb.add_atom(E({ S("="), E({ S("f"), Int(0) }), Int(1) }));
+        kb.add_atom(E({ S("="),
+                        E({ S("f"), V("n") }),
+                        E({ Mul(),
+                            E({ S("f"), E({ Sub(), V("n"), Int(1) }) }),
+                            V("n") }) }));
+        GroundingSpace target;
+        target.add_atom(E({ S("f"), Int(5) }));
+
+        AtomPtr result = interpret_until_result(target, kb);
+
+        TS_ASSERT(*Int(120) == *result);
+    }
+
+    void test_interpret_plain_expr_twice() {
+        Logger::setLevel(Logger::TRACE);
+        GroundingSpace kb;
+        kb.add_atom(E({ S("="), E({ S("f"), Int(0) }), Int(1) }));
+        kb.add_atom(E({ S("="),
+                        E({ S("f"), V("n") }),
+                        E({ Mul(),
+                            E({ S("f"), E({ Sub(), V("n"), Int(1) }) }),
+                            V("n") }) }));
+        GroundingSpace target;
+        target.add_atom(E({ S("f"), Int(3) }));
+        target.add_atom(E({ S("f"), Int(5) }));
+
+        AtomPtr result = interpret_until_result(target, kb);
+        TS_ASSERT(*Int(120) == *result);
+        result = interpret_until_result(target, kb);
+        TS_ASSERT(*Int(6) == *result);
+
     }
 
 };
