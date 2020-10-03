@@ -111,6 +111,25 @@ std::shared_ptr<PlusAtom> Plus() { return std::make_shared<PlusAtom>(); }
 std::shared_ptr<NumAtom> Int(int x) { return std::make_shared<NumAtom>(x); }
 std::shared_ptr<NumAtom> Float(float x) { return std::make_shared<NumAtom>(x); }
 
+class StringAtom : public ValueAtom<std::string> {
+public:
+    StringAtom(std::string value) : ValueAtom(value) {}
+    virtual ~StringAtom() {}
+    std::string to_string() const override { return "\"" + get() + "\""; }
+};
+
+
+class ConcatAtom : public BinaryOpAtom<StringAtom> {
+public:
+    ConcatAtom() : BinaryOpAtom("++") {}
+    virtual StringAtom* operator() (StringAtom const* a, StringAtom const* b) const override {
+        return new StringAtom(a->get() + b->get());
+    }
+};
+
+std::shared_ptr<ConcatAtom> Concat() { return std::make_shared<ConcatAtom>(); };
+std::shared_ptr<StringAtom> String(std::string str) { return std::make_shared<StringAtom>(str); }
+
 AtomPtr interpret_until_result(GroundingSpace& target, GroundingSpace const& kb) {
     AtomPtr result;
     do {

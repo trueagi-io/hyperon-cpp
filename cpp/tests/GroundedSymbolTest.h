@@ -4,17 +4,9 @@
 
 #include <hyperon/GroundingSpace.h>
 #include <hyperon/TextSpace.h>
+#include <hyperon/logger.h>
 
 #include "common.h"
-
-class StringAtom : public ValueAtom<std::string> {
-public:
-    StringAtom(std::string value) : ValueAtom(value) {}
-    virtual ~StringAtom() {}
-    std::string to_string() const override { return "\"" + get() + "\""; }
-};
-
-std::shared_ptr<StringAtom> String(std::string str) { return std::make_shared<StringAtom>(str); }
 
 class GroundedSymbolTest : public CxxTest::TestSuite {
 public:
@@ -43,8 +35,7 @@ public:
         TS_ASSERT(*result == *Float(3.0));
     }
 
-    // FIXME: test is not passed yet
-    void _test_two_grounded_types() {
+    void test_two_grounded_types() {
         TextSpace text_kb;
         text_kb.register_token(std::regex("\\d+(\\.\\d+)?"),
                 [] (std::string str) -> GroundedAtomPtr { return Float(std::stof(str)); });
@@ -54,20 +45,25 @@ public:
                 });
         text_kb.register_token(std::regex("\\+"),
                 [] (std::string str) -> GroundedAtomPtr {
-                    return std::make_shared<PlusAtom>();    
+                    return Plus();    
                 });
-        text_kb.add_string("(= $a 1.0)");
-        text_kb.add_string("(= $x (+ $a 2.0))");
-        text_kb.add_string("(= $b \"1\")");
-        text_kb.add_string("(= $y (+ $b \"2\"))");
+        text_kb.register_token(std::regex("\\+\\+"),
+                [] (std::string str) -> GroundedAtomPtr {
+                    return Concat();
+                });
+        text_kb.add_string("(= (a) 1.0)");
+        text_kb.add_string("(= (x) (+ (a) 2.0))");
+        text_kb.add_string("(= (b) \"1\")");
+        text_kb.add_string("(= (y) (++ (b) \"2\"))");
         GroundingSpace kb;
         kb.add_from_space(text_kb);
-
         GroundingSpace targets;
-        targets.add_atom(V("x"));
-        targets.add_atom(V("y"));
-        targets.interpret_step(kb);
-        targets.interpret_step(kb);
-        TS_ASSERT(targets == GroundingSpace({ Float(3.0), std::make_shared<StringAtom>("12") }));
+        targets.add_atom(E({ S("x") }));
+        targets.add_atom(E({ S("y") }));
+
+        AtomPtr result = interpret_until_result(targets, kb);
+        TS_ASSERT(*result == *String("12"));
+        result = interpret_until_result(targets, kb);
+        TS_ASSERT(*result == *Float(3.0))
     }
 };
