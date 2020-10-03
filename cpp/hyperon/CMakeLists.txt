@@ -9,4 +9,5 @@ INSTALL(FILES
     GroundingSpace.h
     TextSpace.h
     logger.h
+    hyperon.h
     DESTINATION "include/hyperon")

@@ -42,10 +42,12 @@ private:
 };
 
 namespace clog {
-    extern Logger error;
-    extern Logger info;
-    extern Logger debug;
-    extern Logger trace;
+
+extern Logger error;
+extern Logger info;
+extern Logger debug;
+extern Logger trace;
+
 };
 
 #endif /* LOGGER_H */
