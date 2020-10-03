@@ -2,9 +2,10 @@
 #include <memory>
 #include <iostream>
 
+#include <hyperon/logger.h>
 #include <hyperon/GroundingSpace.h>
 #include <hyperon/TextSpace.h>
-#include <hyperon/logger.h>
+#include <hyperon/GroundedArithmetic.h>
 
 #include "common.h"
 

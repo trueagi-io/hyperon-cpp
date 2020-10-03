@@ -1,7 +1,8 @@
 #include <cxxtest/TestSuite.h>
 
-#include <hyperon/GroundingSpace.h>
 #include <hyperon/logger.h>
+#include <hyperon/GroundingSpace.h>
+#include <hyperon/GroundedArithmetic.h>
 
 #include "common.h"
 

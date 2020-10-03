@@ -5,5 +5,6 @@
 #include "SpaceAPI.h"
 #include "GroundingSpace.h"
 #include "TextSpace.h"
+#include "GroundedArithmetic.h"
 
 #endif /* HYPERON_H */
