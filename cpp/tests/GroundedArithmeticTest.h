@@ -12,7 +12,7 @@
 class GroundedSymbolTest : public CxxTest::TestSuite {
 public:
 
-    void test_simple_grounded_operation() {
+    void test_plus_int() {
         GroundingSpace targets;
         targets.add_atom(E({Plus(), Int(1), Int(2)}));
 
@@ -21,7 +21,7 @@ public:
         TS_ASSERT(*result == *Int(3));
     }
 
-    void test_adding_new_grounded_types() {
+    void test_plus_float_in_text_space() {
         TextSpace text_kb;
         text_kb.register_token(std::regex("\\d+(\\.\\d+)?"),
                 [] (std::string str) -> GroundedAtomPtr { return Float(std::stof(str)); });
@@ -36,7 +36,7 @@ public:
         TS_ASSERT(*result == *Float(3.0));
     }
 
-    void test_two_grounded_types() {
+    void test_float_and_string_in_text_space() {
         TextSpace text_kb;
         text_kb.register_token(std::regex("\\d+(\\.\\d+)?"),
                 [] (std::string str) -> GroundedAtomPtr { return Float(std::stof(str)); });

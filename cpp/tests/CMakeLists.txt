@@ -9,4 +9,4 @@ ENDMACRO()
 
 ADD_CXXTEST(GroundingSpaceTest)
 ADD_CXXTEST(TextSpaceTest)
-ADD_CXXTEST(GroundedSymbolTest)
+ADD_CXXTEST(GroundedArithmeticTest)
