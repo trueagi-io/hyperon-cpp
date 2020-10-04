@@ -1,6 +1,6 @@
 FIND_PACKAGE(CxxTest REQUIRED)
 
-ADD_LIBRARY(common STATIC common.cpp GroundedArithmetic.cpp)
+ADD_LIBRARY(common STATIC common.cpp GroundedArithmetic.cpp GroundedLogic.cpp)
 
 MACRO(ADD_CXXTEST)
 	CXXTEST_ADD_TEST(${ARGV0} ${ARGV0}.cpp ${CMAKE_CURRENT_SOURCE_DIR}/${ARGV0}.h)
