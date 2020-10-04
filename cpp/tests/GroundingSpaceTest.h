@@ -10,8 +10,8 @@ void add_factorial_definition(GroundingSpace& kb) {
     kb.add_atom(E({ S("="), E({ S("f"), Int(0) }), Int(1) }));
     kb.add_atom(E({ S("="),
                 E({ S("f"), V("n") }),
-                E({ Mul(),
-                        E({ S("f"), E({ Sub(), V("n"), Int(1) }) }),
+                E({ MUL,
+                        E({ S("f"), E({ SUB, V("n"), Int(1) }) }),
                         V("n") }) }));
 }
 

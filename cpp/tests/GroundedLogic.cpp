@@ -1,7 +1,7 @@
 #include "GroundedLogic.h"
 
-const AtomPtr TRUE = std::shared_ptr<BoolAtom>(new BoolAtom(true));
-const AtomPtr FALSE = std::shared_ptr<BoolAtom>(new BoolAtom(false));
+const std::shared_ptr<BoolAtom> TRUE = std::shared_ptr<BoolAtom>(new BoolAtom(true));
+const std::shared_ptr<BoolAtom> FALSE = std::shared_ptr<BoolAtom>(new BoolAtom(false));
 
 class EqAtom : public GroundedAtom {
 public:
@@ -13,17 +13,17 @@ public:
         result.add_atom(Bool(*a == *b));
     }
     bool operator==(Atom const& _other) const override { 
-        return dynamic_cast<EqAtom const*>(&_other);
+        return this == &_other;
     }
     std::string to_string() const override { return "=="; }
 };
 
-const AtomPtr EQ = std::shared_ptr<EqAtom>(new EqAtom());
+const GroundedAtomPtr EQ = std::shared_ptr<EqAtom>(new EqAtom());
 
 class IfAtom : public GroundedAtom {
 public:
     virtual ~IfAtom() {}
-    virtual void execute(GroundingSpace const& args, GroundingSpace& result) const override {
+    void execute(GroundingSpace const& args, GroundingSpace& result) const override {
         AtomPtr _condition = args.get_content()[1];
         AtomPtr if_true = args.get_content()[2];
         AtomPtr if_false = args.get_content().size() > 3 ? args.get_content()[3] : nullptr;
@@ -39,9 +39,9 @@ public:
         }
     }
     bool operator==(Atom const& _other) const override {
-        return dynamic_cast<IfAtom const*>(&_other);
+        return this == &_other;
     }
     std::string to_string() const override { return "if"; }
 };
 
-const AtomPtr IF = std::shared_ptr<IfAtom>(new IfAtom());
+const GroundedAtomPtr IF = std::shared_ptr<IfAtom>(new IfAtom());
