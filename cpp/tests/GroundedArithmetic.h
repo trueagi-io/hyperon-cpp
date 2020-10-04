@@ -2,8 +2,6 @@
 #define GROUNDED_ARITHMETIC_H
 
 #include <hyperon/GroundingSpace.h>
-#include <stdexcept>
-#include <string>
 
 template<typename T>
 class BinaryOpAtom : public GroundedAtom {

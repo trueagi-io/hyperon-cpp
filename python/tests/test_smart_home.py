@@ -2,7 +2,7 @@ import unittest
 import re
 
 from hyperon import *
-from common import inteprep_until_result, SpacesAtom, MatchAtom
+from common import interpret_until_result, SpacesAtom, MatchAtom
 
 class SmartHomeTest(unittest.TestCase):
 
@@ -22,7 +22,7 @@ class SmartHomeTest(unittest.TestCase):
             E(S("isa"), V("x"), S("lamp")),
             E(CallAtom("turn_on"), V("x"))))
 
-        result = inteprep_until_result(target, GroundingSpace())
+        result = interpret_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
@@ -36,7 +36,7 @@ class SmartHomeTest(unittest.TestCase):
             (match (spaces kb) (isa $x lamp) (call:turn_on $x))
         ''')
 
-        result = inteprep_until_result(target, GroundingSpace())
+        result = interpret_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)

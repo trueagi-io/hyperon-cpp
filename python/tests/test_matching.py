@@ -2,7 +2,7 @@ import unittest
 import re
 
 from hyperon import *
-from common import inteprep_until_result, SpacesAtom, MatchAtom
+from common import interpret_until_result, SpacesAtom, MatchAtom
 
 class MatchingTest(unittest.TestCase):
 
@@ -13,7 +13,7 @@ class MatchingTest(unittest.TestCase):
         target = GroundingSpace()
         target.add_atom(E(PlusAtom(), ValueAtom(1), ValueAtom(2)))
 
-        result = inteprep_until_result(target, GroundingSpace())
+        result = interpret_until_result(target, GroundingSpace())
 
         self.assertEqual(result, ValueAtom(3))
 
@@ -25,7 +25,7 @@ class MatchingTest(unittest.TestCase):
         target = GroundingSpace()
         target.add_from_space(text_kb)
 
-        result = inteprep_until_result(target, GroundingSpace())
+        result = interpret_until_result(target, GroundingSpace())
 
         self.assertEqual(result, ValueAtom(3))
 
@@ -39,9 +39,23 @@ class MatchingTest(unittest.TestCase):
                 (q match (spaces kb) (isa $y $z) (isa $x $z)))
         ''')
 
-        actual = inteprep_until_result(target, kb)
+        actual = interpret_until_result(target, kb)
 
         self.assertEqual(actual, E(S('isa'), S('Fred'), S('green')))
+
+    def test_match_variable_in_target(self):
+        Logger.setLevel(Logger.TRACE)
+        kb = self._atomese('kb', '''
+            (= (isa Fred frog) True)
+        ''')
+        target = self._atomese('target', '''
+            (isa Fred $x)
+        ''')
+
+        actual = interpret_until_result(target, kb)
+
+        self.assertEqual(actual, S('True'))
+
 
     def _atomese(self, name, program):
         kb = GroundingSpace()

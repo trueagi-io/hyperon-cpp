@@ -6,6 +6,15 @@
 #include "common.h"
 #include "GroundedArithmetic.h"
 
+void add_factorial_definition(GroundingSpace& kb) {
+    kb.add_atom(E({ S("="), E({ S("f"), Int(0) }), Int(1) }));
+    kb.add_atom(E({ S("="),
+                E({ S("f"), V("n") }),
+                E({ Mul(),
+                        E({ S("f"), E({ Sub(), V("n"), Int(1) }) }),
+                        V("n") }) }));
+}
+
 class GroundingSpaceTest : public CxxTest::TestSuite {
 public:
 
@@ -58,12 +67,7 @@ public:
     void test_interpret_plain_expr() {
         Logger::setLevel(Logger::TRACE);
         GroundingSpace kb;
-        kb.add_atom(E({ S("="), E({ S("f"), Int(0) }), Int(1) }));
-        kb.add_atom(E({ S("="),
-                        E({ S("f"), V("n") }),
-                        E({ Mul(),
-                            E({ S("f"), E({ Sub(), V("n"), Int(1) }) }),
-                            V("n") }) }));
+        add_factorial_definition(kb);
         GroundingSpace target;
         target.add_atom(E({ S("f"), Int(5) }));
 
@@ -75,21 +79,29 @@ public:
     void test_interpret_plain_expr_twice() {
         Logger::setLevel(Logger::TRACE);
         GroundingSpace kb;
-        kb.add_atom(E({ S("="), E({ S("f"), Int(0) }), Int(1) }));
-        kb.add_atom(E({ S("="),
-                        E({ S("f"), V("n") }),
-                        E({ Mul(),
-                            E({ S("f"), E({ Sub(), V("n"), Int(1) }) }),
-                            V("n") }) }));
+        add_factorial_definition(kb);
         GroundingSpace target;
         target.add_atom(E({ S("f"), Int(3) }));
         target.add_atom(E({ S("f"), Int(5) }));
 
         AtomPtr result = interpret_until_result(target, kb);
         TS_ASSERT(*Int(120) == *result);
+
         result = interpret_until_result(target, kb);
         TS_ASSERT(*Int(6) == *result);
 
     }
 
+    void test_match_variable_in_target() {
+        Logger::setLevel(Logger::TRACE);
+        GroundingSpace kb;
+        kb.add_atom(E({ S("="), E({ S("isa"), S("Fred"), S("frog") }),
+                    S("True") }));
+        GroundingSpace target;
+        target.add_atom(E({ S("isa"), S("Fred"), V("x") }));
+
+        AtomPtr result = interpret_until_result(target, kb);
+
+        TS_ASSERT(*S("True") == *result);
+    }
 };
