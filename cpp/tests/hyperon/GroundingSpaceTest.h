@@ -1,10 +1,7 @@
 #include <cxxtest/TestSuite.h>
 
-#include <hyperon/logger.h>
-#include <hyperon/GroundingSpace.h>
-
-#include "common.h"
-#include "GroundedArithmetic.h"
+#include <hyperon/hyperon.h>
+#include <hyperon/common/common.h>
 
 void add_factorial_definition(GroundingSpace& kb) {
     kb.add_atom(E({ S("="), E({ S("f"), Int(0) }), Int(1) }));

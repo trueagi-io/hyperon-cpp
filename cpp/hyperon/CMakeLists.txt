@@ -11,3 +11,5 @@ INSTALL(FILES
     logger.h
     hyperon.h
     DESTINATION "include/hyperon")
+
+ADD_SUBDIRECTORY(common)

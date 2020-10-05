@@ -2,12 +2,8 @@
 #include <memory>
 #include <iostream>
 
-#include <hyperon/logger.h>
-#include <hyperon/GroundingSpace.h>
-#include <hyperon/TextSpace.h>
-
-#include "common.h"
-#include "GroundedArithmetic.h"
+#include <hyperon/hyperon.h>
+#include <hyperon/common/common.h>
 
 class GroundedSymbolTest : public CxxTest::TestSuite {
 public:
