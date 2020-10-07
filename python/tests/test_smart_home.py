@@ -11,7 +11,6 @@ class SmartHomeTest(unittest.TestCase):
         self.spaces = {}
 
     def test_turn_lamps_on_via_grounded_match(self):
-        Logger.setLevel(Logger.TRACE)
         kb = GroundingSpace()
         kb.add_atom(E(S("isa"), self._get_device("bedroom-lamp"), S("lamp")))
         kb.add_atom(E(S("isa"), self._get_device("kitchen-lamp"), S("lamp")))
@@ -40,6 +39,22 @@ class SmartHomeTest(unittest.TestCase):
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
+
+    def test_turn_lamps_on_via_interpreter_matching(self):
+        Logger.setLevel(Logger.TRACE)
+        kb = self._atomese('kb', '''
+            (= (lamp) dev:kitchen-lamp)
+            (= (lamp) dev:bedroom-lamp)
+        ''')
+        target = self._atomese('target', '''
+            (call:turn_on (lamp))
+        ''')
+
+        result = interpret_until_result(target, kb)
+
+        self.assertTrue(self._get_device("kitchen-lamp").is_on)
+        self.assertTrue(self._get_device("bedroom-lamp").is_on)
+
 
     def _get_device(self, name):
         if not name in self.devices:

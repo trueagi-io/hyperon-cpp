@@ -48,49 +48,55 @@ bool ExprAtom::operator==(Atom const& _other) const {
 std::string GroundingSpace::TYPE = "GroundingSpace";
 
 struct SubExpression {
-    SubExpression(ExprAtomPtr expr, ExprAtomPtr parent, int index)
-        : expr(expr) , parent(parent), index(index) { }
+    static int NO_PARENT;
+    SubExpression(ExprAtomPtr expr, int parent_sub_index, int child_index)
+        : expr(expr) , parent_sub_index(parent_sub_index), child_index(child_index) { }
+    bool has_parent() const { return parent_sub_index != NO_PARENT; }
     ExprAtomPtr expr;
-    ExprAtomPtr parent;
-    int index;
+    int parent_sub_index;
+    int child_index;
 };
+
+int SubExpression::NO_PARENT = -1;
 
 class ExpressionSimplifier : public GroundedAtom {
 public:
 
     ExpressionSimplifier(GroundingSpace const& kb, ExprAtomPtr expr)
-        : kb(kb), full(expr) { parse(expr, nullptr, 0); }
+        : kb(kb) { parse(expr, SubExpression::NO_PARENT, 0); }
     ExpressionSimplifier(GroundingSpace const& kb, ExprAtomPtr full,
             std::vector<SubExpression> subs)
-        : kb(kb), full(full), subs(subs) {}
+        : kb(kb), subs(subs) {}
 
     void execute(GroundingSpace const& args, GroundingSpace& result) const override;
 
     bool operator==(Atom const& _other) const override {
         ExpressionSimplifier const* other = dynamic_cast<ExpressionSimplifier const*>(&_other);
-        return other && *full == *(other->full);
+        return other && *full() == *(other->full());
     }
 
     std::string to_string() const override {
-        return "simplify " + full->to_string();
+        return "simplify " + full()->to_string();
     }
 
 private:
-    void parse(ExprAtomPtr expr, ExprAtomPtr parent, int index);
+    void parse(ExprAtomPtr expr, int parent_sub_index, int child_index);
     std::shared_ptr<ExpressionSimplifier> pop_sub(SubExpression sub, AtomPtr replacement) const;
+    ExprAtomPtr full() const { return subs[0].expr; }
+    void replace_sub(SubExpression& sub, AtomPtr replacement);
 
     GroundingSpace const& kb;
-    ExprAtomPtr full;
     std::vector<SubExpression> subs;
 };
 
-void ExpressionSimplifier::parse(ExprAtomPtr expr, ExprAtomPtr parent, int index) {
-    subs.emplace_back(expr, parent, index);
+void ExpressionSimplifier::parse(ExprAtomPtr expr, int parent_sub_index, int child_index) {
+    int expr_sub_index = subs.size();
+    subs.emplace_back(expr, parent_sub_index, child_index);
     auto const& children = expr->get_children();
     for (int i = 0; i < children.size(); ++i) {
         AtomPtr child = children[i];
         if (child->get_type() == Atom::EXPR) {
-            parse(std::dynamic_pointer_cast<ExprAtom>(child), expr, i);
+            parse(std::dynamic_pointer_cast<ExprAtom>(child), expr_sub_index, i);
         }
     }
 }
@@ -133,7 +139,7 @@ static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr exp
 
 void ExpressionSimplifier::execute(GroundingSpace const& args, GroundingSpace& result) const {
     SubExpression const& sub = subs.back();
-    if (!sub.parent) {
+    if (!sub.has_parent()) {
         clog::debug << "ExpressionSimplifier.execute(): full expression: " << sub.expr->to_string() << std::endl;
         if (!interpret_plain_expression(kb, sub.expr, result)) {
             result.add_atom(sub.expr);
@@ -153,27 +159,39 @@ void ExpressionSimplifier::execute(GroundingSpace const& args, GroundingSpace& r
                     "no results");
         }
         if (success) {
-            AtomPtr replacement = tmp.get_content()[0];
-            sub.parent->get_children()[sub.index] = replacement;
-            result.add_atom(E({ pop_sub(sub, replacement) }));
+            for (auto const& replacement : tmp.get_content()) {
+                result.add_atom(E({ pop_sub(sub, replacement) }));
+            }   
         } else {
             result.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
         }
     }
 }
 
+void ExpressionSimplifier::replace_sub(SubExpression& sub, AtomPtr replacement) {
+    SubExpression& parent_sub = subs[sub.parent_sub_index];
+    ExprAtomPtr parent_copy = E(parent_sub.expr->get_children());  
+    parent_copy->get_children()[sub.child_index] = replacement;
+    if (parent_sub.has_parent()) {
+        subs[sub.parent_sub_index].expr->get_children()[sub.child_index] = replacement;
+    }
+    parent_sub.expr = parent_copy;
+}
+
 std::shared_ptr<ExpressionSimplifier> ExpressionSimplifier::pop_sub(SubExpression sub, AtomPtr tail) const {
     // TODO: replace copy by reusing array with variable containing size
-    std::vector<SubExpression> copy = subs;
-    copy.pop_back();
-    if (tail && tail->get_type() == Atom::EXPR) {
-        ExprAtomPtr expr = std::dynamic_pointer_cast<ExprAtom>(tail);
-        auto ptr = std::make_shared<ExpressionSimplifier>(kb, full, copy);
-        ptr->parse(expr, sub.parent, sub.index);
-        return ptr;
-    } else {
-        return std::make_shared<ExpressionSimplifier>(kb, full, copy);
+    std::vector<SubExpression> subs_copy = subs;
+    subs_copy.pop_back();
+    auto copy = std::make_shared<ExpressionSimplifier>(kb, full(), subs_copy);
+    if (tail) {
+        copy->replace_sub(sub, tail);
+        if (tail->get_type() == Atom::EXPR) {
+            ExprAtomPtr expr = std::dynamic_pointer_cast<ExprAtom>(tail);
+            copy->parse(expr, sub.parent_sub_index, sub.child_index);
+            return copy;
+        }
     }
+    return copy;
 }
 
 static bool is_plain(ExprAtomPtr expr) {
