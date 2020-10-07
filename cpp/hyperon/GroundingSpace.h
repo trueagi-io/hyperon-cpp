@@ -51,7 +51,9 @@ private:
     std::string symbol;
 };
 
-inline AtomPtr S(std::string symbol) {
+using SymbolAtomPtr = std::shared_ptr<SymbolAtom>;
+
+inline auto S(std::string symbol) {
     return std::make_shared<SymbolAtom>(symbol);
 }
 
@@ -69,15 +71,15 @@ private:
     std::vector<AtomPtr> children;
 };
 
-inline AtomPtr E(std::initializer_list<AtomPtr> children) {
-    return std::make_shared<ExprAtom>(children);
-}
-
-inline AtomPtr E(std::vector<AtomPtr> children) {
-    return std::make_shared<ExprAtom>(children);
-}
-
 using ExprAtomPtr = std::shared_ptr<ExprAtom>;
+
+inline auto E(std::initializer_list<AtomPtr> children) {
+    return std::make_shared<ExprAtom>(children);
+}
+
+inline auto E(std::vector<AtomPtr> children) {
+    return std::make_shared<ExprAtom>(children);
+}
 
 class VariableAtom : public Atom {
 public:
@@ -94,11 +96,11 @@ private:
     std::string name;
 };
 
-inline AtomPtr V(std::string name) {
+using VariableAtomPtr = std::shared_ptr<VariableAtom>;
+
+inline auto V(std::string name) {
     return std::make_shared<VariableAtom>(name);
 }
-
-using VariableAtomPtr = std::shared_ptr<VariableAtom>;
 
 class GroundingSpace;
 
