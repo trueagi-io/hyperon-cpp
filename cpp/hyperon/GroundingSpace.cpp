@@ -96,7 +96,7 @@ void ExpressionSimplifier::parse(ExprAtomPtr expr, int parent_sub_index, int chi
     for (int i = 0; i < children.size(); ++i) {
         AtomPtr child = children[i];
         if (child->get_type() == Atom::EXPR) {
-            parse(std::dynamic_pointer_cast<ExprAtom>(child), expr_sub_index, i);
+            parse(std::static_pointer_cast<ExprAtom>(child), expr_sub_index, i);
         }
     }
 }
@@ -121,6 +121,7 @@ static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr exp
                 << result.to_string() << "\"" << std::endl;
             return true;
         }
+        clog::trace << "interpret_plain_expression(): skip execution because atom has non bound variables as arguments" << std::endl;
         return false;
     } else {
         clog::debug << "interpret_plain_expression(): looking for expression in KB: "
@@ -151,10 +152,9 @@ void ExpressionSimplifier::execute(GroundingSpace const& args, GroundingSpace& r
         if (!success) {
             tmp.add_atom(sub.expr);
         }
-        // FIXME: implement by duplicating root of the plain_expr_result, and
-        // replacing plain_expr by each item of content and push it back to the
-        // content collection.
         if (tmp.get_content().size() == 0) {
+            // FIXME: should not be possible probably, interpret_plain_expression
+            // should return false in that case ??? wait for real example
             throw std::logic_error("This case is not implemented yet: "
                     "no results");
         }
@@ -186,7 +186,7 @@ std::shared_ptr<ExpressionSimplifier> ExpressionSimplifier::pop_sub(SubExpressio
     if (tail) {
         copy->replace_sub(sub, tail);
         if (tail->get_type() == Atom::EXPR) {
-            ExprAtomPtr expr = std::dynamic_pointer_cast<ExprAtom>(tail);
+            ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(tail);
             copy->parse(expr, sub.parent_sub_index, sub.child_index);
             return copy;
         }
@@ -221,7 +221,7 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
         return atom;
     }
 
-    ExprAtomPtr expr = std::dynamic_pointer_cast<ExprAtom>(atom);
+    ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
     if (is_plain(expr)) {
         clog::trace << "interpret_step(): handle plain expression" << std::endl;
         bool success = interpret_plain_expression(kb, expr, *this);
