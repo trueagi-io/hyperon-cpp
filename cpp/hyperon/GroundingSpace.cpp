@@ -101,36 +101,54 @@ void ExpressionSimplifier::parse(ExprAtomPtr expr, int parent_sub_index, int chi
     }
 }
 
-static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, GroundingSpace& result) {
-    AtomPtr op = expr->get_children()[0];
-    if (op->get_type() == Atom::GROUNDED) {
-        GroundedAtom const* func = static_cast<GroundedAtom const*>(op.get());
-        // TODO: How should we return results of the execution? At the moment they
-        // are put into current atomspace. Should we return new child atomspace
-        // instead?
-        auto children = expr->get_children();
-        // FIXME: temporary hack: if grounded atom has variables don't execute it
-        bool has_variables = std::any_of(children.cbegin(), children.cend(),
-                [](auto const& child) -> bool { return child->get_type() == Atom::VARIABLE; });
-        if (!has_variables) {
-            GroundingSpace args(children);
-            clog::trace << "interpret_plain_expression(): executing atom, args: \""
-                << args.to_string() << "\"" << std::endl;
-            func->execute(args, result);
-            clog::trace << "interpret_plain_expression(): executing atom, result: \""
-                << result.to_string() << "\"" << std::endl;
-            return true;
+struct ExecutionResult {
+    bool success;
+    std::vector<AtomPtr> results;
+    void results_to_space(GroundingSpace& space) {
+        for (auto const& result : results) {
+            space.add_atom(result);
         }
-        clog::trace << "interpret_plain_expression(): skip execution because atom has non bound variables as arguments" << std::endl;
-        return false;
+    }
+};
+
+static bool is_grounded_expression(ExprAtomPtr expr) {
+    return expr->get_children()[0]->get_type() == Atom::GROUNDED;
+}
+
+static ExecutionResult execute_grounded_expression(ExprAtomPtr expr) {
+    GroundedAtom const* func = static_cast<GroundedAtom const*>(expr->get_children()[0].get());
+    // TODO: How should we return results of the execution? At the moment they
+    // are put into current atomspace. Should we return new child atomspace
+    // instead?
+    auto children = expr->get_children();
+    // FIXME: temporary hack: if grounded atom has variables don't execute it
+    bool has_variables = std::any_of(children.cbegin(), children.cend(),
+            [](auto const& child) -> bool { return child->get_type() == Atom::VARIABLE; });
+    if (!has_variables) {
+        GroundingSpace args(children);
+        clog::debug << __func__ << ": args: \"" << args.to_string() << "\"" << std::endl;
+        GroundingSpace result;
+        func->execute(args, result);
+        clog::debug << __func__ << ": result: \"" << result.to_string() << "\"" << std::endl;
+        return { true, result.get_content() };
+    }
+    clog::debug << __func__ << ": skip execution because atom has non bound variables as arguments" << std::endl;
+    return { false };
+}
+
+static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, GroundingSpace& result) {
+    if (is_grounded_expression(expr)) {
+        auto res = execute_grounded_expression(expr);
+        res.results_to_space(result);
+        return res.success;
     } else {
-        clog::debug << "interpret_plain_expression(): looking for expression in KB: "
+        clog::debug << __func__ << ": looking for expression in KB: "
             << expr->to_string() << std::endl;
         GroundingSpace pattern({ E({ S("="), expr, V("X") }) });
         GroundingSpace templ({ V("X") });
         GroundingSpace tmp;
         kb.match(pattern, templ, tmp);
-        clog::trace << "interpret_plain_expression(): matching result: "<< tmp.to_string() << std::endl;
+        clog::debug << __func__ << ": matching result: "<< tmp.to_string() << std::endl;
         for (auto const& item : tmp.get_content()) {
             result.add_atom(item);
         }
@@ -141,12 +159,12 @@ static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr exp
 void ExpressionSimplifier::execute(GroundingSpace const& args, GroundingSpace& result) const {
     SubExpression const& sub = subs.back();
     if (!sub.has_parent()) {
-        clog::debug << "ExpressionSimplifier.execute(): full expression: " << sub.expr->to_string() << std::endl;
+        clog::debug << __func__ << ": full expression: " << sub.expr->to_string() << std::endl;
         if (!interpret_plain_expression(kb, sub.expr, result)) {
             result.add_atom(sub.expr);
         }
     } else {
-        clog::debug << "ExpressionSimplifier.execute(): sub expression: " << sub.expr->to_string() << std::endl;
+        clog::debug << __func__ << ": sub expression: " << sub.expr->to_string() << std::endl;
         GroundingSpace tmp;
         bool success = interpret_plain_expression(kb, sub.expr, tmp);
         if (!success) {
@@ -216,20 +234,20 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
 
     AtomPtr atom = content.back();
     content.pop_back();
-    clog::debug << "interpret_step(): atom on top: " << atom->to_string() << std::endl;
+    clog::debug << __func__ << ": atom on top: " << atom->to_string() << std::endl;
     if (atom->get_type() != Atom::EXPR) {
         return atom;
     }
 
     ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
     if (is_plain(expr)) {
-        clog::trace << "interpret_step(): handle plain expression" << std::endl;
+        clog::debug << __func__ << ": handle plain expression" << std::endl;
         bool success = interpret_plain_expression(kb, expr, *this);
         // FIXME: if it is an expression which cannot be simplified this method
         // returns ExpressionSimplifier expression
         return success ? Atom::INVALID : atom;
     } else {
-        clog::trace << "interpret_step(): prepare to simplify expression" << std::endl;
+        clog::debug << __func__ << ": prepare to simplify expression" << std::endl;
         content.push_back(E({std::make_shared<ExpressionSimplifier>(kb, expr)}));
         return Atom::INVALID;
     }
@@ -244,14 +262,14 @@ public:
 
 using Bindings = std::map<VariableAtomPtr, AtomPtr, LessVariableAtomPtr>;
 
-struct MatchResult {
+struct MatchBindings {
     Bindings a_bindings;
     Bindings b_bindings;
 };
 
 // FIXME: if variable matched twice it should be checked the second match is
 // equal to the first one.
-static bool match_atoms(AtomPtr a, AtomPtr b, MatchResult& match) {
+static bool match_atoms(AtomPtr a, AtomPtr b, MatchBindings& match) {
     // TODO: it is not clear how should we handle the case when a and b are
     // both variables. We can check variable name equality and skip binding. We
     // can add a as binding for b and vice versa.
@@ -325,7 +343,7 @@ static AtomPtr apply_bindings_to_atom(AtomPtr const& atom, Bindings const& bindi
     }
 }
 
-static void apply_a_to_b_bindings(MatchResult& match) {
+static void apply_a_to_b_bindings(MatchBindings& match) {
     Bindings b_bindings;
     for (auto const& pair : match.b_bindings) {
         AtomPtr applied = apply_bindings_to_atom(pair.second, match.a_bindings);
@@ -334,13 +352,27 @@ static void apply_a_to_b_bindings(MatchResult& match) {
     match.b_bindings = b_bindings;
 }
 
-static void apply_match_to_templ(GroundingSpace& results,
-        std::vector<AtomPtr> const& templ, MatchResult const& match) {
+static void apply_bindings_to_templ(GroundingSpace& results,
+        std::vector<AtomPtr> const& templ, Bindings const& bindings) {
     for (auto const& atom : templ) {
-        AtomPtr result = apply_bindings_to_atom(atom, match.b_bindings);
-        clog::trace << "apply_match_to_templ(): result: " << result->to_string() << std::endl;
+        AtomPtr result = apply_bindings_to_atom(atom, bindings);
+        clog::debug << __func__ << ": result: " << result->to_string() << std::endl;
         results.add_atom(result);
     }
+}
+
+static std::vector<Bindings> match(GroundingSpace const& space, AtomPtr pattern) {
+    std::vector<Bindings> result;
+    clog::debug << __func__ << ": pattern: " << pattern->to_string() << std::endl;
+    for (auto const& match : space.get_content()) {
+        MatchBindings bindings;
+        if (!match_atoms(match, pattern, bindings)) {
+            continue;
+        }
+        apply_a_to_b_bindings(bindings);
+        result.emplace_back(bindings.b_bindings);
+    }
+    return result;
 }
 
 void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, GroundingSpace& result) const {
@@ -355,16 +387,12 @@ void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, Gro
     if (pattern.content.size() != 1) {
         throw std::logic_error("_pattern with more than one clause is not supported");
     }
-    clog::debug << "match: pattern: " << pattern.to_string() <<
+    clog::debug << __func__ << ": pattern: " << pattern.to_string() <<
         ", templ: " << templ.to_string() << std::endl;
     AtomPtr pattern_atom = pattern.content[0];
-    for (auto const& kb_atom : content) {
-        MatchResult match_result;
-        if (!match_atoms(kb_atom, pattern_atom, match_result)) {
-            continue;
-        }
-        apply_a_to_b_bindings(match_result);
-        apply_match_to_templ(result, templ.content, match_result);
+    std::vector<Bindings> matches = ::match(*this, pattern_atom);
+    for (auto const& match : matches) {
+        apply_bindings_to_templ(result, templ.content, match);
     }
 }
 
