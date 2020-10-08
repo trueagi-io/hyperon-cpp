@@ -251,11 +251,6 @@ void ExpressionReduction::parse(ExprAtomPtr expr, int parent_sub_index, int chil
 struct ExecutionResult {
     bool success;
     std::vector<AtomPtr> results;
-    void results_to_space(GroundingSpace& space) {
-        for (auto const& result : results) {
-            space.add_atom(result);
-        }
-    }
 };
 
 static bool is_grounded_expression(ExprAtomPtr expr) {
@@ -274,41 +269,40 @@ static ExecutionResult execute_grounded_expression(ExprAtomPtr expr) {
     if (!has_variables) {
         GroundingSpace args(children);
         clog::debug << __func__ << ": args: \"" << args.to_string() << "\"" << std::endl;
-        GroundingSpace result;
-        func->execute(args, result);
-        clog::debug << __func__ << ": result: \"" << result.to_string() << "\"" << std::endl;
-        return { true, result.get_content() };
+        GroundingSpace results;
+        func->execute(args, results);
+        clog::debug << __func__ << ": results: \"" << results.to_string() << "\"" << std::endl;
+        return { true, results.get_content() };
     }
     clog::debug << __func__ << ": skip execution because atom has non bound variables as arguments" << std::endl;
     return { false };
 }
 
-static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, GroundingSpace& result) {
+static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, GroundingSpace& target) {
     if (is_grounded_expression(expr)) {
-        auto res = execute_grounded_expression(expr);
-        res.results_to_space(result);
-        return res.success;
+        ExecutionResult result = execute_grounded_expression(expr);
+        for (auto const& result : result.results) {
+            target.add_atom(result);
+        }
+        return result.success;
     } else {
         clog::debug << __func__ << ": looking for expression in KB: "
             << expr->to_string() << std::endl;
-        GroundingSpace pattern({ E({ S("="), expr, V("X") }) });
-        GroundingSpace templ({ V("X") });
-        GroundingSpace tmp;
-        kb.match(pattern, templ, tmp);
-        clog::debug << __func__ << ": matching result: "<< tmp.to_string() << std::endl;
-        for (auto const& item : tmp.get_content()) {
-            result.add_atom(item);
+        std::vector<Bindings> results = match(kb, E({ S("="), expr, V("X") }));
+        std::vector<AtomPtr> templ({ V("X") });
+        for (auto const& result : results) {
+            apply_bindings_to_templ(target, templ, result);
         }
-        return !tmp.get_content().empty();
+        return !results.empty();
     }
 }
 
-void ExpressionReduction::execute(GroundingSpace const& args, GroundingSpace& result) const {
+void ExpressionReduction::execute(GroundingSpace const& args, GroundingSpace& target) const {
     SubExpression const& sub = subs.back();
     if (!sub.has_parent()) {
         clog::debug << __func__ << ": full expression: " << sub.expr->to_string() << std::endl;
-        if (!interpret_plain_expression(kb, sub.expr, result)) {
-            result.add_atom(sub.expr);
+        if (!interpret_plain_expression(kb, sub.expr, target)) {
+            target.add_atom(sub.expr);
         }
     } else {
         clog::debug << __func__ << ": sub expression: " << sub.expr->to_string() << std::endl;
@@ -325,10 +319,10 @@ void ExpressionReduction::execute(GroundingSpace const& args, GroundingSpace& re
         }
         if (success) {
             for (auto const& replacement : tmp.get_content()) {
-                result.add_atom(E({ pop_sub(sub, replacement) }));
+                target.add_atom(E({ pop_sub(sub, replacement) }));
             }   
         } else {
-            result.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
+            target.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
         }
     }
 }
