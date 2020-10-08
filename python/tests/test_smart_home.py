@@ -22,7 +22,6 @@ class SmartHomeTest(unittest.TestCase):
             E(CallAtom("turn_on"), V("x"))))
 
         interpret_until_result(target, GroundingSpace())
-        interpret_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
@@ -37,7 +36,6 @@ class SmartHomeTest(unittest.TestCase):
         ''')
 
         interpret_until_result(target, GroundingSpace())
-        interpret_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
@@ -51,7 +49,6 @@ class SmartHomeTest(unittest.TestCase):
             (call:turn_on (lamp))
         ''')
 
-        interpret_until_result(target, kb)
         interpret_until_result(target, kb)
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
@@ -71,7 +68,6 @@ class SmartHomeTest(unittest.TestCase):
             (turn_lamp_on)
         ''')
 
-        interpret_until_result(target, kb)
         interpret_until_result(target, kb)
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)

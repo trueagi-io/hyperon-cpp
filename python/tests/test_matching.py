@@ -41,7 +41,6 @@ class MatchingTest(unittest.TestCase):
         ''')
 
         actual = interpret_until_result(target, kb)
-        actual = interpret_until_result(target, kb)
 
         self.assertEqual(actual, E(S('isa'), S('Fred'), S('green')))
 
