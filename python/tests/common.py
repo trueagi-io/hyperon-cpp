@@ -23,10 +23,6 @@ class SpacesAtom(GroundedAtom):
     def __repr__(self):
         return "spaces"
 
-        if not name in self.devices:
-            self.devices[name] = DeviceAtom(name)
-        return self.devices[name]
-
 class MatchAtom(GroundedAtom):
 
     def __init__(self):

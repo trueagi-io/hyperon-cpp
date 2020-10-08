@@ -30,6 +30,7 @@ class MatchingTest(unittest.TestCase):
         self.assertEqual(result, ValueAtom(3))
 
     def test_nested_matching(self):
+        Logger.setLevel(Logger.TRACE)
         kb = self._atomese('kb', '''
             (isa Fred frog)
             (isa frog green)
@@ -40,11 +41,11 @@ class MatchingTest(unittest.TestCase):
         ''')
 
         actual = interpret_until_result(target, kb)
+        actual = interpret_until_result(target, kb)
 
         self.assertEqual(actual, E(S('isa'), S('Fred'), S('green')))
 
     def test_match_variable_in_target(self):
-        Logger.setLevel(Logger.TRACE)
         kb = self._atomese('kb', '''
             (= (isa Fred frog) True)
         ''')

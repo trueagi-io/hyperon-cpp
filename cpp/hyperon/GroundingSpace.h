@@ -166,7 +166,7 @@ public:
 
     bool operator==(SpaceAPI const& space) const;
     bool operator!=(SpaceAPI const& other) const { return !(*this == other); }
-    std::string to_string() const { return ::to_string(content, "\n"); }
+    std::string to_string() const { return "<" + ::to_string(content, ", ") + ">"; }
 
 private:
 

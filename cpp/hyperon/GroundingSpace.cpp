@@ -278,13 +278,16 @@ static ExecutionResult execute_grounded_expression(ExprAtomPtr expr) {
     return { false };
 }
 
-static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, AtomPtr templ, GroundingSpace& target) {
+static AtomPtr interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, AtomPtr templ, GroundingSpace& target) {
     if (is_grounded_expression(expr)) {
         ExecutionResult result = execute_grounded_expression(expr);
+        if (!result.success) {
+            return expr;
+        }
         for (auto const& result : result.results) {
             target.add_atom(result);
         }
-        return result.success;
+        return result.results.empty() ? S("()") : Atom::INVALID;
     } else {
         clog::debug << __func__ << ": looking for expression in KB: "
             << expr->to_string() << std::endl;
@@ -293,11 +296,11 @@ static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr exp
         for (auto const& result : results) {
             apply_bindings_to_templ(target, _templ, result);
         }
-        return !results.empty();
+        return results.empty() ? expr : Atom::INVALID;
     }
 }
 
-static bool interpret_full_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, GroundingSpace& target) {
+static AtomPtr interpret_full_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, GroundingSpace& target) {
     return interpret_plain_expression(kb, expr, V("X"), target);
 }
 
@@ -305,8 +308,9 @@ void ExpressionReduction::execute(GroundingSpace const& args, GroundingSpace& ta
     SubExpression const& sub = subs.back();
     if (!sub.has_parent()) {
         clog::debug << __func__ << ": full expression: " << sub.expr->to_string() << std::endl;
-        if (!interpret_full_plain_expression(kb, sub.expr, target)) {
-            target.add_atom(sub.expr);
+        AtomPtr non_interpretable = interpret_full_plain_expression(kb, sub.expr, target);
+        if (non_interpretable && (*non_interpretable != *S("()"))) {
+            target.add_atom(non_interpretable);
         }
     } else {
         clog::debug << __func__ << ": sub expression: " << sub.expr->to_string() << std::endl;
@@ -323,10 +327,11 @@ void ExpressionReduction::execute(GroundingSpace const& args, GroundingSpace& ta
             GroundingSpace results;
             // FIXME: hack temporary replace expr by variable to form pattern
             subs[sub.parent_sub_index].expr->get_children()[sub.child_index] = V("X");
-            bool success = interpret_plain_expression(kb, sub.expr, full(), results);
+            AtomPtr non_interpretable = interpret_plain_expression(kb, sub.expr, full(), results);
             subs[sub.parent_sub_index].expr->get_children()[sub.child_index] = sub.expr;
-            if (!success) {
-                results.add_atom(sub.expr);
+            if (non_interpretable) {
+                target.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
+                return;
             }
             if (results.get_content().size() == 0) {
                 // FIXME: should not be possible probably, interpret_plain_expression
@@ -334,16 +339,12 @@ void ExpressionReduction::execute(GroundingSpace const& args, GroundingSpace& ta
                 throw std::logic_error("This case is not implemented yet: "
                         "no results");
             }
-            if (success) {
-                for (auto const& result : results.get_content()) {
-                    ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(result);
-                    // FIXME: ineffective we parse expression each time even if
-                    // no variables were replaced
-                    target.add_atom(E({std::make_shared<ExpressionReduction>(kb, expr)}));
-                }   
-            } else {
-                target.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
-            }
+            for (auto const& result : results.get_content()) {
+                ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(result);
+                // FIXME: ineffective we parse expression each time even if
+                // no variables were replaced
+                target.add_atom(E({std::make_shared<ExpressionReduction>(kb, expr)}));
+            }   
         }
     }
 }
@@ -404,10 +405,7 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
     if (is_plain(expr)) {
         clog::debug << __func__ << ": atom is plain expression" << std::endl;
-        bool success = interpret_full_plain_expression(kb, expr, *this);
-        // FIXME: if it is an expression which cannot be simplified this method
-        // returns ExpressionReduction expression
-        return success ? Atom::INVALID : atom;
+        return interpret_full_plain_expression(kb, expr, *this);
     } else {
         clog::debug << __func__ << ": prepare to simplify expression" << std::endl;
         content.push_back(E({std::make_shared<ExpressionReduction>(kb, expr)}));

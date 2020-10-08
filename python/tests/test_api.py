@@ -73,7 +73,7 @@ class ApiTest(unittest.TestCase):
     def test_groundingspace_str(self):
         kb = GroundingSpace()
         kb.add_atom(E(S("+"), S("1"), S("2")))
-        self.assertEqual(str(kb), "(+ 1 2)")
+        self.assertEqual(str(kb), "<(+ 1 2)>")
 
     def test_groundingspace_equals(self):
         kb_a = GroundingSpace()

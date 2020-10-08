@@ -21,7 +21,8 @@ class SmartHomeTest(unittest.TestCase):
             E(S("isa"), V("x"), S("lamp")),
             E(CallAtom("turn_on"), V("x"))))
 
-        result = interpret_until_result(target, GroundingSpace())
+        interpret_until_result(target, GroundingSpace())
+        interpret_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
@@ -35,7 +36,8 @@ class SmartHomeTest(unittest.TestCase):
             (match (spaces kb) (isa $x lamp) (call:turn_on $x))
         ''')
 
-        result = interpret_until_result(target, GroundingSpace())
+        interpret_until_result(target, GroundingSpace())
+        interpret_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
@@ -49,7 +51,8 @@ class SmartHomeTest(unittest.TestCase):
             (call:turn_on (lamp))
         ''')
 
-        result = interpret_until_result(target, kb)
+        interpret_until_result(target, kb)
+        interpret_until_result(target, kb)
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
@@ -68,7 +71,8 @@ class SmartHomeTest(unittest.TestCase):
             (turn_lamp_on)
         ''')
 
-        result = interpret_until_result(target, kb)
+        interpret_until_result(target, kb)
+        interpret_until_result(target, kb)
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
