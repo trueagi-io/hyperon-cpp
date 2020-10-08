@@ -49,15 +49,6 @@ std::string GroundingSpace::TYPE = "GroundingSpace";
 
 // Match
 
-class LessVariableAtomPtr {
-public:
-    bool operator()(VariableAtomPtr const& a, VariableAtomPtr const& b) const {
-        return a->get_name() < b->get_name();
-    }
-};
-
-using Bindings = std::map<VariableAtomPtr, AtomPtr, LessVariableAtomPtr>;
-
 struct MatchBindings {
     Bindings a_bindings;
     Bindings b_bindings;
@@ -157,10 +148,10 @@ static void apply_bindings_to_templ(GroundingSpace& target,
     }
 }
 
-static std::vector<Bindings> match(GroundingSpace const& space, AtomPtr pattern) {
+std::vector<Bindings> GroundingSpace::match(AtomPtr pattern) const {
     std::vector<Bindings> result;
     clog::debug << __func__ << ": pattern: " << pattern->to_string() << std::endl;
-    for (auto const& match : space.get_content()) {
+    for (auto const& match : get_content()) {
         MatchBindings bindings;
         if (!match_atoms(match, pattern, bindings)) {
             continue;
@@ -186,7 +177,7 @@ void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, Gro
     clog::debug << __func__ << ": pattern: " << pattern.to_string() <<
         ", templ: " << templ.to_string() << std::endl;
     AtomPtr pattern_atom = pattern.content[0];
-    std::vector<Bindings> results = ::match(*this, pattern_atom);
+    std::vector<Bindings> results = match(pattern_atom);
     for (auto const& result : results) {
         apply_bindings_to_templ(target, templ.content, result);
     }
@@ -291,7 +282,7 @@ static AtomPtr interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr 
     } else {
         clog::debug << __func__ << ": looking for expression in KB: "
             << expr->to_string() << std::endl;
-        std::vector<Bindings> results = match(kb, E({ S("="), expr, V("X") }));
+        std::vector<Bindings> results = kb.match(E({ S("="), expr, V("X") }));
         std::vector<AtomPtr> _templ({ templ });
         for (auto const& result : results) {
             apply_bindings_to_templ(target, _templ, result);

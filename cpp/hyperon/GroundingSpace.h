@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <vector>
 #include <memory>
+#include <map>
 
 #include "SpaceAPI.h"
 
@@ -102,6 +103,15 @@ inline auto V(std::string name) {
     return std::make_shared<VariableAtom>(name);
 }
 
+class LessVariableAtomPtr {
+public:
+    bool operator()(VariableAtomPtr const& a, VariableAtomPtr const& b) const {
+        return a->get_name() < b->get_name();
+    }
+};
+
+using Bindings = std::map<VariableAtomPtr, AtomPtr, LessVariableAtomPtr>;
+
 class GroundingSpace;
 
 class GroundedAtom : public Atom {
@@ -162,6 +172,7 @@ public:
     AtomPtr interpret_step(SpaceAPI const& kb);
     // TODO: Discuss moving into SpaceAPI as match_to replacement
     void match(SpaceAPI const& pattern, SpaceAPI const& templ, GroundingSpace& space) const;
+    std::vector<Bindings> match(AtomPtr pattern) const;
     std::vector<AtomPtr> const& get_content() const { return content; }
 
     bool operator==(SpaceAPI const& space) const;
