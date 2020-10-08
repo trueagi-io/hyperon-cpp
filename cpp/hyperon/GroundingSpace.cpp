@@ -324,12 +324,6 @@ void ExpressionReduction::execute(GroundingSpace const& args, GroundingSpace& ta
                 target.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
                 return;
             }
-            if (results.get_content().size() == 0) {
-                // FIXME: should not be possible probably, interpret_plain_expression
-                // should return false in that case ??? wait for real example
-                throw std::logic_error("This case is not implemented yet: "
-                        "no results");
-            }
             for (auto const& result : results.get_content()) {
                 ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(result);
                 // FIXME: ineffective we parse expression each time even if
