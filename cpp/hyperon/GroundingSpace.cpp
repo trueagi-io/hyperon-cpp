@@ -293,7 +293,7 @@ static bool match_atoms(AtomPtr a, AtomPtr b, MatchResult& match) {
     }
 }
 
-static AtomPtr apply_match_to_atom(AtomPtr const& atom, Bindings const& bindings) {
+static AtomPtr apply_bindings_to_atom(AtomPtr const& atom, Bindings const& bindings) {
     switch (atom->get_type()) {
         case Atom::SYMBOL:
         case Atom::GROUNDED:
@@ -313,7 +313,7 @@ static AtomPtr apply_match_to_atom(AtomPtr const& atom, Bindings const& bindings
                 ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
                 std::vector<AtomPtr> children;
                 for (auto const& atom : expr->get_children()) {
-                    AtomPtr applied = apply_match_to_atom(atom, bindings);
+                    AtomPtr applied = apply_bindings_to_atom(atom, bindings);
                     children.push_back(applied);
                 }
                 AtomPtr grounded_expr = E(children);
@@ -328,7 +328,7 @@ static AtomPtr apply_match_to_atom(AtomPtr const& atom, Bindings const& bindings
 static void apply_a_to_b_bindings(MatchResult& match) {
     Bindings b_bindings;
     for (auto const& pair : match.b_bindings) {
-        AtomPtr applied = apply_match_to_atom(pair.second, match.a_bindings);
+        AtomPtr applied = apply_bindings_to_atom(pair.second, match.a_bindings);
         b_bindings[pair.first] = applied;
     }
     match.b_bindings = b_bindings;
@@ -337,7 +337,7 @@ static void apply_a_to_b_bindings(MatchResult& match) {
 static void apply_match_to_templ(GroundingSpace& results,
         std::vector<AtomPtr> const& templ, MatchResult const& match) {
     for (auto const& atom : templ) {
-        AtomPtr result = apply_match_to_atom(atom, match.b_bindings);
+        AtomPtr result = apply_bindings_to_atom(atom, match.b_bindings);
         clog::trace << "apply_match_to_templ(): result: " << result->to_string() << std::endl;
         results.add_atom(result);
     }
