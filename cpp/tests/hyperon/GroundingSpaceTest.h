@@ -83,7 +83,6 @@ public:
 
     // FIXME: test is commented out until fix for function representation in KB
     void _test_interpret_plain_expr() {
-        Logger::setLevel(Logger::TRACE);
         GroundingSpace kb;
         add_factorial_definition(kb);
         GroundingSpace target;
@@ -96,7 +95,6 @@ public:
 
     // FIXME: test is commented out until fix for function representation in KB
     void _test_interpret_plain_expr_twice() {
-        Logger::setLevel(Logger::TRACE);
         GroundingSpace kb;
         add_factorial_definition(kb);
         GroundingSpace target;
@@ -112,7 +110,6 @@ public:
     }
 
     void test_match_variable_in_target() {
-        Logger::setLevel(Logger::TRACE);
         GroundingSpace kb;
         kb.add_atom(E({ S("="), E({ S("isa"), S("Fred"), S("frog") }),
                     S("True") }));

@@ -41,7 +41,6 @@ class SmartHomeTest(unittest.TestCase):
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
 
     def test_turn_lamps_on_via_interpreter_matching(self):
-        Logger.setLevel(Logger.TRACE)
         kb = self._atomese('kb', '''
             (= (lamp) dev:kitchen-lamp)
             (= (lamp) dev:bedroom-lamp)
@@ -54,6 +53,26 @@ class SmartHomeTest(unittest.TestCase):
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
+
+    # FIXME: works incorrectly because if is not lazy and
+    # lamps are turned on even if condition is True
+    def _test_turn_lamps_on_via_condition_and_matching(self):
+        Logger.setLevel(Logger.TRACE)
+        kb = self._atomese('kb', '''
+            (= (lamp dev:kitchen-lamp)  True)
+            (= (lamp dev:bedroom-lamp)  True)
+            (= (lamp dev:toilet)  False)
+            (= (turn_lamp_on) (if (lamp $x) (call:turn_on $x) nop))
+        ''')
+        target = self._atomese('target', '''
+            (turn_lamp_on)
+        ''')
+
+        result = interpret_until_result(target, kb)
+
+        self.assertTrue(self._get_device("kitchen-lamp").is_on)
+        self.assertTrue(self._get_device("bedroom-lamp").is_on)
+        self.assertFalse(self._get_device("toilet").is_on)
 
 
     def _get_device(self, name):
@@ -68,6 +87,8 @@ class SmartHomeTest(unittest.TestCase):
         text.register_token("match", lambda token: MatchAtom())
         text.register_token("dev:\\S+", lambda token: self._get_device(token[4:]))
         text.register_token("call:\\S+", lambda token: CallAtom(token[5:]))
+        text.register_token("True|False", lambda token: ValueAtom(token == 'True'))
+        text.register_token("if", lambda token: IfAtom())
         text.add_string(program)
         kb.add_from_space(text)
         self.spaces[name] = kb
@@ -83,7 +104,7 @@ class DeviceAtom(GroundedAtom):
 
     def turn_on(self):
         self.is_on = True
-        print("light is on")
+        print(self.name + " light is on")
 
     def __eq__(self, other):
         if isinstance(other, DeviceAtom):
@@ -112,3 +133,22 @@ class CallAtom(GroundedAtom):
     def __repr__(self):
         return "call:" + self.method_name
 
+class IfAtom(GroundedAtom):
+
+    def __init__(self):
+        GroundedAtom.__init__(self)
+
+    def execute(self, args, result):
+        condition = args.get_content()[1]
+        if_true = args.get_content()[2]
+        if_false = args.get_content()[3]
+        if (condition.value):
+            result.add_atom(if_true)
+        else:
+            result.add_atom(if_false)
+
+    def __eq__(self, other):
+        return isinstance(other, IfAtom)
+
+    def __repr__(self):
+        return "if"

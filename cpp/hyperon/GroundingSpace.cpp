@@ -274,11 +274,11 @@ static ExecutionResult execute_grounded_expression(ExprAtomPtr expr) {
         clog::debug << __func__ << ": results: \"" << results.to_string() << "\"" << std::endl;
         return { true, results.get_content() };
     }
-    clog::debug << __func__ << ": skip execution because atom has non bound variables as arguments" << std::endl;
+    clog::debug << __func__ << ": skip execution because atom has unbound variables as arguments" << std::endl;
     return { false };
 }
 
-static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, GroundingSpace& target) {
+static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, AtomPtr templ, GroundingSpace& target) {
     if (is_grounded_expression(expr)) {
         ExecutionResult result = execute_grounded_expression(expr);
         for (auto const& result : result.results) {
@@ -289,40 +289,61 @@ static bool interpret_plain_expression(GroundingSpace const& kb, ExprAtomPtr exp
         clog::debug << __func__ << ": looking for expression in KB: "
             << expr->to_string() << std::endl;
         std::vector<Bindings> results = match(kb, E({ S("="), expr, V("X") }));
-        std::vector<AtomPtr> templ({ V("X") });
+        std::vector<AtomPtr> _templ({ templ });
         for (auto const& result : results) {
-            apply_bindings_to_templ(target, templ, result);
+            apply_bindings_to_templ(target, _templ, result);
         }
         return !results.empty();
     }
+}
+
+static bool interpret_full_plain_expression(GroundingSpace const& kb, ExprAtomPtr expr, GroundingSpace& target) {
+    return interpret_plain_expression(kb, expr, V("X"), target);
 }
 
 void ExpressionReduction::execute(GroundingSpace const& args, GroundingSpace& target) const {
     SubExpression const& sub = subs.back();
     if (!sub.has_parent()) {
         clog::debug << __func__ << ": full expression: " << sub.expr->to_string() << std::endl;
-        if (!interpret_plain_expression(kb, sub.expr, target)) {
+        if (!interpret_full_plain_expression(kb, sub.expr, target)) {
             target.add_atom(sub.expr);
         }
     } else {
         clog::debug << __func__ << ": sub expression: " << sub.expr->to_string() << std::endl;
-        GroundingSpace tmp;
-        bool success = interpret_plain_expression(kb, sub.expr, tmp);
-        if (!success) {
-            tmp.add_atom(sub.expr);
-        }
-        if (tmp.get_content().size() == 0) {
-            // FIXME: should not be possible probably, interpret_plain_expression
-            // should return false in that case ??? wait for real example
-            throw std::logic_error("This case is not implemented yet: "
-                    "no results");
-        }
-        if (success) {
-            for (auto const& replacement : tmp.get_content()) {
-                target.add_atom(E({ pop_sub(sub, replacement) }));
-            }   
+        if (is_grounded_expression(sub.expr)) {
+            ExecutionResult result = execute_grounded_expression(sub.expr);
+            if (result.success) {
+                for (auto const& result : result.results) {
+                    target.add_atom(E({ pop_sub(sub, result) }));
+                }
+            } else {
+                target.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
+            }
         } else {
-            target.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
+            GroundingSpace results;
+            // FIXME: hack temporary replace expr by variable to form pattern
+            subs[sub.parent_sub_index].expr->get_children()[sub.child_index] = V("X");
+            bool success = interpret_plain_expression(kb, sub.expr, full(), results);
+            subs[sub.parent_sub_index].expr->get_children()[sub.child_index] = sub.expr;
+            if (!success) {
+                results.add_atom(sub.expr);
+            }
+            if (results.get_content().size() == 0) {
+                // FIXME: should not be possible probably, interpret_plain_expression
+                // should return false in that case ??? wait for real example
+                throw std::logic_error("This case is not implemented yet: "
+                        "no results");
+            }
+            if (success) {
+                for (auto const& result : results.get_content()) {
+                    ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(result);
+                    // FIXME: ineffective we parse expression each time even if
+                    // no variables were replaced
+                    target.add_atom(E({std::make_shared<ExpressionReduction>(kb, expr)}));
+                }   
+            } else {
+                target.add_atom(E({ pop_sub(sub, Atom::INVALID) }));
+            }
         }
     }
 }
@@ -375,15 +396,15 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
 
     AtomPtr atom = content.back();
     content.pop_back();
-    clog::debug << __func__ << ": atom on top: " << atom->to_string() << std::endl;
+    clog::debug << __func__ << ": next atom to interpret: " << atom->to_string() << std::endl;
     if (atom->get_type() != Atom::EXPR) {
         return atom;
     }
 
     ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
     if (is_plain(expr)) {
-        clog::debug << __func__ << ": handle plain expression" << std::endl;
-        bool success = interpret_plain_expression(kb, expr, *this);
+        clog::debug << __func__ << ": atom is plain expression" << std::endl;
+        bool success = interpret_full_plain_expression(kb, expr, *this);
         // FIXME: if it is an expression which cannot be simplified this method
         // returns ExpressionReduction expression
         return success ? Atom::INVALID : atom;
