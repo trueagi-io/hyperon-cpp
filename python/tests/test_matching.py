@@ -56,6 +56,15 @@ class MatchingTest(unittest.TestCase):
 
         self.assertEqual(actual, S('True'))
 
+    def test_match_single_symbol_in_interpret(self):
+        kb = GroundingSpace()
+        kb.add_atom(E(S("="), E(S("f")), S("g")))
+        target = GroundingSpace()
+        target.add_atom(E(S("f")))
+
+        actual = interpret_until_result(target, kb)
+
+        self.assertEqual(actual, S('g'))
 
     def _atomese(self, name, program):
         kb = GroundingSpace()
