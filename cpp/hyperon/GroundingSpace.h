@@ -42,6 +42,7 @@ std::string to_string(std::vector<AtomPtr> const& atoms, std::string delimiter);
 class SymbolAtom : public Atom {
 public:
     SymbolAtom(std::string symbol) : symbol(symbol) { }
+    virtual ~SymbolAtom() { }
     std::string get_symbol() const { return symbol; }
 
     Type get_type() const override { return SYMBOL; }
@@ -66,6 +67,7 @@ class ExprAtom : public Atom {
 public:
     ExprAtom(std::initializer_list<AtomPtr> children) : children(children) { }
     ExprAtom(std::vector<AtomPtr> children) : children(children) { }
+    virtual ~ExprAtom() { }
     std::vector<AtomPtr>& get_children() { return children; }
 
     Type get_type() const override { return EXPR; }
@@ -91,6 +93,7 @@ inline auto E(std::vector<AtomPtr> children) {
 class VariableAtom : public Atom {
 public:
     VariableAtom(std::string name) : name(name) { }
+    virtual ~VariableAtom() { }
     std::string get_name() const { return name; }
 
     Type get_type() const override { return VARIABLE; }
