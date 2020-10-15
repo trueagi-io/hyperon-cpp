@@ -162,6 +162,13 @@ struct Unification {
 
 using Unifications = std::vector<Unification>;
 
+struct UnificationResult {
+    // FIXME: a_bindings can be removed from here
+    Bindings a_bindings;
+    Bindings b_bindings;
+    Unifications unifications;
+};
+
 class GroundingSpace : public SpaceAPI {
 public:
 
@@ -194,7 +201,7 @@ public:
     // FIXME: this method can be removed and implemented in client code on top
     // of GroundingSpace::match
     void match(SpaceAPI const& pattern, SpaceAPI const& templ, GroundingSpace& space) const;
-    std::vector<Unifications> unify(AtomPtr atom) const;
+    std::vector<UnificationResult> unify(AtomPtr atom) const;
     std::vector<AtomPtr> const& get_content() const { return content; }
 
     bool operator==(SpaceAPI const& space) const;

@@ -145,14 +145,14 @@ static void apply_bindings_to_templ(GroundingSpace& target,
         std::vector<AtomPtr> const& templ, Bindings const& bindings) {
     for (auto const& atom : templ) {
         AtomPtr result = apply_bindings_to_atom(atom, bindings);
-        clog::debug << __func__ << ": result: " << result->to_string() << std::endl;
+        LOG_DEBUG << "result: " << result->to_string() << std::endl;
         target.add_atom(result);
     }
 }
 
 std::vector<Bindings> GroundingSpace::match(AtomPtr pattern) const {
     std::vector<Bindings> result;
-    clog::debug << __func__ << ": pattern: " << pattern->to_string() << std::endl;
+    LOG_DEBUG << "pattern: " << pattern->to_string() << std::endl;
     for (auto const& match : get_content()) {
         MatchBindings bindings;
         if (!match_atoms(match, pattern, bindings)) {
@@ -177,7 +177,7 @@ void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, Gro
     if (pattern.content.size() != 1) {
         throw std::logic_error("_pattern with more than one clause is not supported");
     }
-    clog::debug << __func__ << ": pattern: " << pattern.to_string() <<
+    LOG_DEBUG << "pattern: " << pattern.to_string() <<
         ", templ: " << templ.to_string() << std::endl;
     AtomPtr pattern_atom = pattern.content[0];
     std::vector<Bindings> results = match(pattern_atom);
@@ -188,13 +188,7 @@ void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, Gro
 
 // Unify
 
-struct UnificationResult {
-    Bindings a_bindings;
-    Bindings b_bindings;
-    Unifications unifications;
-};
-
-bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult result) {
+bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result) {
     // TODO: it is not clear how should we handle the case when a and b are
     // both variables. We can check variable name equality and skip binding. We
     // can add a as binding for b and vice versa.
@@ -249,17 +243,20 @@ static void apply_bindings_to_unifications(UnificationResult& result) {
     result.unifications = applied;
 }
 
-std::vector<Unifications> GroundingSpace::unify(AtomPtr atom) const {
-    std::vector<Unifications> all_unifications;
+std::vector<UnificationResult> GroundingSpace::unify(AtomPtr atom) const {
+    LOG_DEBUG << "match and unify atom: " << atom->to_string() << std::endl;
+    std::vector<UnificationResult> all_unifications;
     for (auto const& candidate : get_content()) {
         UnificationResult result;
         if (!unify_atoms(candidate, atom, result)) {
+            LOG_TRACE << "candidate: " << candidate->to_string() << ": fail" << std::endl;
             continue;
         }
+        LOG_DEBUG << "candidate: " << candidate->to_string() << ": ok" << std::endl;
         result.b_bindings = apply_bindings_to_bindings(result.a_bindings,
                 result.b_bindings);
         apply_bindings_to_unifications(result);
-        all_unifications.push_back(result.unifications);
+        all_unifications.push_back(result);
     }
     return all_unifications; 
 }
@@ -276,8 +273,7 @@ struct SubExpression {
     int child_index;
 };
 
-int SubExpression::NO_PARENT = -1;
-
+int SubExpression::NO_PARENT = -1; 
 class ExpressionReduction : public GroundedAtom {
 public:
 
@@ -340,19 +336,18 @@ static ExecutionResult execute_grounded_expression(ExprAtomPtr expr) {
             [](auto const& child) -> bool { return child->get_type() == Atom::VARIABLE; });
     if (!has_variables) {
         GroundingSpace args(children);
-        clog::debug << __func__ << ": args: \"" << args.to_string() << "\"" << std::endl;
+        LOG_DEBUG << "args: \"" << args.to_string() << "\"" << std::endl;
         GroundingSpace results;
         func->execute(args, results);
-        clog::debug << __func__ << ": results: \"" << results.to_string() << "\"" << std::endl;
+        LOG_DEBUG << "results: \"" << results.to_string() << "\"" << std::endl;
         return { true, results.get_content() };
     }
-    clog::debug << __func__ << ": skip execution because atom has unbound variables as arguments" << std::endl;
+    LOG_DEBUG << "skip execution because atom has unbound variables as arguments" << std::endl;
     return { false };
 }
 
 static AtomPtr match_plain_nongrounded_expression(GroundingSpace const& kb, ExprAtomPtr expr, AtomPtr templ, GroundingSpace& target) {
-    clog::debug << __func__ << ": looking for expression in KB: "
-        << expr->to_string() << std::endl;
+    LOG_DEBUG << "looking for expression in KB: " << expr->to_string() << std::endl;
     std::vector<Bindings> results = kb.match(E({ S("="), expr, V("X") }));
     std::vector<AtomPtr> _templ({ templ });
     for (auto const& result : results) {
@@ -380,13 +375,13 @@ static AtomPtr interpret_full_expression(GroundingSpace const& kb, ExprAtomPtr e
 void ExpressionReduction::execute(GroundingSpace const& args, GroundingSpace& target) const {
     SubExpression const& sub = subs.back();
     if (!sub.has_parent()) {
-        clog::debug << __func__ << ": full expression: " << sub.expr->to_string() << std::endl;
+        LOG_DEBUG << "full expression: " << sub.expr->to_string() << std::endl;
         AtomPtr non_interpretable = interpret_full_expression(kb, sub.expr, target);
         if (non_interpretable) {
             target.add_atom(non_interpretable);
         }
     } else {
-        clog::debug << __func__ << ": sub expression: " << sub.expr->to_string() << std::endl;
+        LOG_DEBUG << "sub expression: " << sub.expr->to_string() << std::endl;
         if (is_grounded_expression(sub.expr)) {
             ExecutionResult result = execute_grounded_expression(sub.expr);
             if (result.success) {
@@ -484,12 +479,13 @@ static bool find_next_expr(std::vector<AtomPtr>::iterator& it,
         if ((*it)->get_type() == Atom::EXPR) {
             return true;
         }
+        it++;
     }
     return false;
 }
 
 static AtomPtr reduct_first_arg(ExprAtomPtr expr) {
-    auto it = expr->get_children().begin()++;
+    auto it = expr->get_children().begin() + 1;
     if (!find_next_expr(it, expr->get_children().end())) {
         throw std::runtime_error("Could not find first expression argument");
     }
@@ -499,16 +495,18 @@ static AtomPtr reduct_first_arg(ExprAtomPtr expr) {
 }
 
 static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
-    auto it = expr->get_children().begin()++;
+    auto it = expr->get_children().begin() + 1;
     while (it != expr->get_children().end()) {
         if (*it == ARG) {
             *it = value;
             break;
         }
+        it++;
     }
     if (it == expr->get_children().end()) {
         throw std::runtime_error("Could not find placeholder to replace by value");
     }
+    it++;
     if (find_next_expr(it, expr->get_children().end())) {
         AtomPtr arg = *it;
         *it = ARG;
@@ -518,45 +516,96 @@ static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
     }
 }
 
+static AtomPtr generate_if_eq_recursively(Unifications::const_reverse_iterator i,
+        Unifications::const_reverse_iterator end, AtomPtr expr) {
+    if (i == end) {
+        return expr;
+    }
+    return E({IFEQ, i->a, i->b, generate_if_eq_recursively(i + 1, end, expr)});
+}
+
+static AtomPtr unification_result_to_expr(UnificationResult const& unification_result,
+        VariableAtomPtr var) {
+    auto expr = unification_result.b_bindings.at(var);
+    auto it = unification_result.unifications.crbegin();
+    return generate_if_eq_recursively(it, unification_result.unifications.crend(), expr);
+}
+
 static AtomPtr interpret_expr_step(GroundingSpace const& kb,
     ExprAtomPtr expr, std::function<void(AtomPtr)> callback) {
 
     if (is_grounded_expression(expr)) {
+        LOG_DEBUG << "executing grounded expression" << std::endl;
         if (is_plain_expression(expr)) {
-            clog::debug << __func__ << ": executing plain grounded expression" << std::endl;
+            LOG_DEBUG << "executing plain grounded expression" << std::endl;
             ExecutionResult result = execute_grounded_expression(expr);
             if (result.success) {
                 for (auto const& result : result.results) {
+                    LOG_DEBUG << "execution result: " << result->to_string() << std::endl;
                     callback(result);
                 }
                 return Atom::INVALID;
             } else {
+                LOG_DEBUG << "cannot execute expression" << std::endl;
                 return expr;
             }
         } else {
             // reduct expression
         }
     } else {
-        std::vector<Unifications> unifications = kb.unify(expr);
-        if (unifications.empty()) {
+        LOG_DEBUG << "interpreting symbolic expression" << std::endl;
+        // FIXME: replace V("X") by UniqueVar
+        VariableAtomPtr var = V("X");
+        std::vector<UnificationResult> results = kb.unify(E({S("="), expr, var}));
+        if (results.empty()) {
+            LOG_DEBUG << "unification is not found" << std::endl;
             if (is_plain_expression(expr)) {
+                LOG_DEBUG << "plain symbolic expression is not interpretable" << std::endl;
                 return expr;
             } else {
                 // reduct expression
             }
         } else {
-            clog::debug << __func__ << ":" << "adding unification result" << std::endl; 
-            for (auto const& unification : unifications) {
-                // FIXME: write full expression here
-                callback(E({IFEQ }));
+            LOG_DEBUG << "adding unification results" << std::endl; 
+            for (auto const& result : results) {
+                callback(unification_result_to_expr(result, var));
             }
             return Atom::INVALID;
         }
     }
     
-    clog::debug << __func__ << ":" << "reducting expression" << std::endl;
+    LOG_DEBUG << "reducting expression" << std::endl;
     callback(reduct_first_arg(expr));
     return Atom::INVALID;
+}
+
+static void interpret_apply_step(GroundingSpace const& kb, ExprAtomPtr expr,
+        std::function<void(AtomPtr)> callback) {
+    AtomPtr sub_expr = expr->get_children()[1];
+    ExprAtomPtr full_expr = std::static_pointer_cast<ExprAtom>(expr->get_children()[2]);
+    LOG_DEBUG << "interpreting apply operation, sub expression: " << sub_expr->to_string() << std::endl;
+    if (sub_expr->get_type() != Atom::EXPR) {
+        LOG_DEBUG << "sub expression is already interpreted, moving to next" << std::endl;
+        callback(reduct_next_arg(full_expr, sub_expr));
+    } else {
+        expr = std::static_pointer_cast<ExprAtom>(sub_expr);
+        AtomPtr op = expr->get_children()[0];
+        if (op == APPLY) {
+            interpret_apply_step(kb, expr, [&callback, &full_expr](AtomPtr result) -> void {
+                    callback(E({APPLY, result, full_expr}));
+                });
+        } else {
+            LOG_DEBUG << "interpret sub expression" << std::endl;
+            AtomPtr result = interpret_expr_step(kb, std::static_pointer_cast<ExprAtom>(sub_expr),
+                    [&callback, &full_expr](AtomPtr result) -> void {
+                        callback(E({ APPLY, result, full_expr }));
+                    });
+            if (result) {
+                LOG_DEBUG << "sub expression is not interpretable" << std::endl;
+                callback(reduct_next_arg(full_expr, result));
+            }
+        }
+    }
 }
 
 AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
@@ -572,7 +621,7 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
 
     AtomPtr atom = content.back();
     content.pop_back();
-    clog::debug << __func__ << ": next atom to interpret: " << atom->to_string() << std::endl;
+    LOG_DEBUG << "next atom to interpret: " << atom->to_string() << std::endl;
     if (atom->get_type() != Atom::EXPR) {
         return atom;
     }
@@ -580,22 +629,12 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
     AtomPtr op = expr->get_children()[0];
     if (op == APPLY) {
-        AtomPtr sub_expr = expr->get_children()[1];
-        ExprAtomPtr full_expr = std::static_pointer_cast<ExprAtom>(expr->get_children()[2]);
-        if (sub_expr->get_type() != Atom::EXPR) {
-            content.push_back(reduct_next_arg(full_expr, sub_expr));
-            return Atom::INVALID;
-        } else {
-            AtomPtr result = interpret_expr_step(kb, std::static_pointer_cast<ExprAtom>(sub_expr),
-                    [this, full_expr](AtomPtr result) -> void {
-                        this->content.push_back(E({ APPLY, result, full_expr }));
-                    });
-            if (result) {
-                content.push_back(reduct_next_arg(full_expr, result));
-            }
-            return Atom::INVALID;
-        }
+        interpret_apply_step(kb, expr, [this](AtomPtr result) -> void {
+                this->content.push_back(result);
+            });
+        return Atom::INVALID;
     } else {
+        LOG_DEBUG << "interpreting expression: " << expr->to_string() << std::endl;
         return interpret_expr_step(kb, expr, [this](AtomPtr result) -> void {
                     this->content.push_back(result);
                 });
