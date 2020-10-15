@@ -37,6 +37,8 @@ std::string to_string(Atom::Type type);
 bool operator==(std::vector<AtomPtr> const& a, std::vector<AtomPtr> const& b); 
 std::string to_string(std::vector<AtomPtr> const& atoms, std::string delimiter);
 
+// Symbol atom
+
 class SymbolAtom : public Atom {
 public:
     SymbolAtom(std::string symbol) : symbol(symbol) { }
@@ -57,6 +59,8 @@ using SymbolAtomPtr = std::shared_ptr<SymbolAtom>;
 inline auto S(std::string symbol) {
     return std::make_shared<SymbolAtom>(symbol);
 }
+
+// Expression atom
 
 class ExprAtom : public Atom {
 public:
@@ -81,6 +85,8 @@ inline auto E(std::initializer_list<AtomPtr> children) {
 inline auto E(std::vector<AtomPtr> children) {
     return std::make_shared<ExprAtom>(children);
 }
+
+// Variable atom
 
 class VariableAtom : public Atom {
 public:
@@ -111,6 +117,8 @@ public:
 };
 
 using Bindings = std::map<VariableAtomPtr, AtomPtr, LessVariableAtomPtr>;
+
+// Grounded atom
 
 class GroundingSpace;
 
@@ -143,6 +151,14 @@ private:
 
 // Space
 
+struct Unification {
+    Unification(AtomPtr a, AtomPtr b) : a(a), b(b) {}
+    AtomPtr a;
+    AtomPtr b;
+};
+
+using Unifications = std::vector<Unification>;
+
 class GroundingSpace : public SpaceAPI {
 public:
 
@@ -171,8 +187,11 @@ public:
     // on a SpaceAPI level.
     AtomPtr interpret_step(SpaceAPI const& kb);
     // TODO: Discuss moving into SpaceAPI as match_to replacement
-    void match(SpaceAPI const& pattern, SpaceAPI const& templ, GroundingSpace& space) const;
     std::vector<Bindings> match(AtomPtr pattern) const;
+    // FIXME: this method can be removed and implemented in client code on top
+    // of GroundingSpace::match
+    void match(SpaceAPI const& pattern, SpaceAPI const& templ, GroundingSpace& space) const;
+    std::vector<Unifications> unify(AtomPtr atom) const;
     std::vector<AtomPtr> const& get_content() const { return content; }
 
     bool operator==(SpaceAPI const& space) const;

@@ -131,13 +131,13 @@ static AtomPtr apply_bindings_to_atom(AtomPtr const& atom, Bindings const& bindi
     }
 }
 
-static void apply_a_to_b_bindings(MatchBindings& match) {
-    Bindings b_bindings;
-    for (auto const& pair : match.b_bindings) {
-        AtomPtr applied = apply_bindings_to_atom(pair.second, match.a_bindings);
-        b_bindings[pair.first] = applied;
+static Bindings apply_bindings_to_bindings(Bindings from, Bindings to) {
+    Bindings result;
+    for (auto const& pair : to) {
+        AtomPtr applied = apply_bindings_to_atom(pair.second, from);
+        result[pair.first] = applied;
     }
-    match.b_bindings = b_bindings;
+    return result;
 }
 
 static void apply_bindings_to_templ(GroundingSpace& target,
@@ -157,7 +157,8 @@ std::vector<Bindings> GroundingSpace::match(AtomPtr pattern) const {
         if (!match_atoms(match, pattern, bindings)) {
             continue;
         }
-        apply_a_to_b_bindings(bindings);
+        bindings.b_bindings = apply_bindings_to_bindings(bindings.a_bindings,
+                bindings.b_bindings);
         result.emplace_back(bindings.b_bindings);
     }
     return result;
@@ -182,6 +183,84 @@ void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, Gro
     for (auto const& result : results) {
         apply_bindings_to_templ(target, templ.content, result);
     }
+}
+
+// Unify
+
+struct UnificationResult {
+    Bindings a_bindings;
+    Bindings b_bindings;
+    Unifications unifications;
+};
+
+bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult result) {
+    // TODO: it is not clear how should we handle the case when a and b are
+    // both variables. We can check variable name equality and skip binding. We
+    // can add a as binding for b and vice versa.
+    if (b->get_type() == Atom::VARIABLE) {
+        VariableAtomPtr var_b = std::static_pointer_cast<VariableAtom>(b);
+        result.b_bindings[var_b] = a;
+        return true;
+    }
+    switch (a->get_type()) {
+    case Atom::SYMBOL:
+    case Atom::GROUNDED:
+        if (b->get_type() == Atom::SYMBOL || b->get_type() == Atom::GROUNDED) {
+            return *a == *b;
+        }
+        result.unifications.emplace_back(a, b);
+        return true;
+    case Atom::VARIABLE:
+        {
+            VariableAtomPtr var_a = std::static_pointer_cast<VariableAtom>(a);
+            result.a_bindings[var_a] = b;
+            return true;
+        }
+    case Atom::EXPR:
+        if (b->get_type() == Atom::EXPR) {
+            ExprAtomPtr expr_a = std::static_pointer_cast<ExprAtom>(a);
+            ExprAtomPtr expr_b = std::static_pointer_cast<ExprAtom>(b);
+            if (expr_a->get_children().size() != expr_b->get_children().size()) {
+                return false;
+            }
+            for (int i = 0; i < expr_a->get_children().size(); ++i) {
+                if (!unify_atoms(expr_a->get_children()[i], expr_b->get_children()[i], result)) {
+                    return false;
+                }
+            }
+        } else {
+            result.unifications.emplace_back(a, b);
+        }
+        return true;
+    default:
+        throw std::logic_error("Not implemented for type: " +
+                to_string(a->get_type()));
+    }
+}
+
+static void apply_bindings_to_unifications(UnificationResult& result) {
+    Unifications applied;
+    for (const auto& unification : result.unifications) {
+        AtomPtr a = apply_bindings_to_atom(unification.a, result.a_bindings);
+        AtomPtr b = apply_bindings_to_atom(unification.b, result.b_bindings);
+        applied.emplace_back(a, b);
+    }
+    result.unifications = applied;
+}
+
+std::vector<Unifications> GroundingSpace::unify(AtomPtr atom) const {
+    std::vector<Unifications> all_unifications;
+    for (auto const& candidate : get_content()) {
+        UnificationResult result;
+        if (!unify_atoms(candidate, atom, result)) {
+            continue;
+        }
+        result.b_bindings = apply_bindings_to_bindings(result.a_bindings,
+                result.b_bindings);
+        apply_bindings_to_unifications(result);
+        all_unifications.push_back(result.unifications);
+    }
+    return all_unifications; 
 }
 
 // Interpret
@@ -368,7 +447,7 @@ std::shared_ptr<ExpressionReduction> ExpressionReduction::pop_sub(SubExpression 
     return copy;
 }
 
-static bool is_plain(ExprAtomPtr expr) {
+static bool is_plain_expression(ExprAtomPtr expr) {
     for (auto const& child : expr->get_children()) {
         if (child->get_type() == Atom::EXPR) {
             return false;
@@ -396,14 +475,31 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     }
 
     ExprAtomPtr expr = std::static_pointer_cast<ExprAtom>(atom);
-    if (is_plain(expr)) {
-        clog::debug << __func__ << ": atom is plain expression" << std::endl;
-        return interpret_full_expression(kb, expr, *this);
+    if (is_grounded_expression(expr)) {
+        if (is_plain_expression(expr)) {
+            clog::debug << __func__ << ": executing plain grounded expression" << std::endl;
+            return interpret_full_expression(kb, expr, *this);
+        } else {
+            // reduct expression
+        }
     } else {
-        clog::debug << __func__ << ": prepare to simplify expression" << std::endl;
-        content.push_back(E({std::make_shared<ExpressionReduction>(kb, expr)}));
-        return Atom::INVALID;
+        std::vector<Unifications> unifications = kb.unify(E({ S("="), expr, V("X") }));
+        if (unifications.empty()) {
+            if (is_plain_expression(expr)) {
+                return expr;
+            } else {
+                // reduct expression
+            }
+        } else {
+            clog::error << __func__ << ": " << "adding unification result" << std::endl; 
+            content.push_back(E({std::make_shared<ExpressionReduction>(kb, expr)}));
+            return Atom::INVALID;
+        }
     }
+    
+    clog::error << __func__ << ": " << "reducting expression" << std::endl;
+    content.push_back(E({std::make_shared<ExpressionReduction>(kb, expr)}));
+    return Atom::INVALID;
 }
 
 bool GroundingSpace::operator==(SpaceAPI const& _other) const {
