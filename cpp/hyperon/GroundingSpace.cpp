@@ -467,7 +467,7 @@ public:
         IfEqAtom const* other = dynamic_cast<IfEqAtom const*>(&_other);
         return other && *other->expr == *expr;
     }
-    std::string to_string() const override { return "pushifeq"; }
+    std::string to_string() const override { return "ifeq"; }
 
 private:
     AtomPtr expr;
@@ -490,7 +490,7 @@ static bool find_next_expr(std::vector<AtomPtr>::iterator& it,
 
 static AtomPtr reduct_first_arg(ExprAtomPtr expr) {
     std::vector<AtomPtr> children = expr->get_children();
-    auto it = children.begin() + 1;
+    auto it = children.begin();
     if (!find_next_expr(it, children.end())) {
         throw std::runtime_error("Could not find first expression argument");
     }
@@ -501,7 +501,7 @@ static AtomPtr reduct_first_arg(ExprAtomPtr expr) {
 
 static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
     std::vector<AtomPtr> children = expr->get_children();
-    auto it = children.begin() + 1;
+    auto it = children.begin();
     while (it != children.end()) {
         if (*it == AT) {
             *it = value;

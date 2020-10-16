@@ -57,7 +57,10 @@ class SmartHomeTest(unittest.TestCase):
     # FIXME: works incorrectly because if is not lazy and
     # lamps are turned on even if condition is True
     def _test_turn_lamps_on_via_condition_and_matching(self):
+        Logger.setLevel(Logger.DEBUG)
         kb = self._atomese('kb', '''
+            (= (if True $then $else) $then)
+            (= (if False $then $else) $else)
             (= (lamp dev:kitchen-lamp)  True)
             (= (lamp dev:bedroom-lamp)  True)
             (= (lamp dev:toilet)  False)
@@ -67,6 +70,8 @@ class SmartHomeTest(unittest.TestCase):
             (turn_lamp_on)
         ''')
 
+        interpret_until_result(target, kb)
+        interpret_until_result(target, kb)
         interpret_until_result(target, kb)
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
@@ -87,7 +92,6 @@ class SmartHomeTest(unittest.TestCase):
         text.register_token("dev:\\S+", lambda token: self._get_device(token[4:]))
         text.register_token("call:\\S+", lambda token: CallAtom(token[5:]))
         text.register_token("True|False", lambda token: ValueAtom(token == 'True'))
-        text.register_token("if", lambda token: IfAtom())
         text.add_string(program)
         kb.add_from_space(text)
         self.spaces[name] = kb
@@ -132,22 +136,3 @@ class CallAtom(GroundedAtom):
     def __repr__(self):
         return "call:" + self.method_name
 
-class IfAtom(GroundedAtom):
-
-    def __init__(self):
-        GroundedAtom.__init__(self)
-
-    def execute(self, args, result):
-        condition = args.get_content()[1]
-        if_true = args.get_content()[2]
-        if_false = args.get_content()[3]
-        if (condition.value):
-            result.add_atom(if_true)
-        else:
-            result.add_atom(if_false)
-
-    def __eq__(self, other):
-        return isinstance(other, IfAtom)
-
-    def __repr__(self):
-        return "if"

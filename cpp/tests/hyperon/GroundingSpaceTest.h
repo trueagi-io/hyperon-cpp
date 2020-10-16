@@ -4,8 +4,8 @@
 #include <hyperon/common/common.h>
 
 void add_factorial_definition(GroundingSpace& kb) {
-    kb.add_atom(E({ S("="), E({ S("if"), TRUE, V("x"), V("y") }), V("x") }));
-    kb.add_atom(E({ S("="), E({ S("if"), FALSE, V("x"), V("y") }), V("y") }));
+    kb.add_atom(E({ S("="), E({ S("if"), TRUE, V("then"), V("else") }), V("then") }));
+    kb.add_atom(E({ S("="), E({ S("if"), FALSE, V("then"), V("else") }), V("else") }));
     kb.add_atom(E({ S("="),
                 E({ S("fact"), V("n") }),
                 E({ S("if"), E({ EQ, Int(0), V("n") }),
