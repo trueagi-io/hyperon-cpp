@@ -57,7 +57,6 @@ class SmartHomeTest(unittest.TestCase):
     # FIXME: works incorrectly because if is not lazy and
     # lamps are turned on even if condition is True
     def _test_turn_lamps_on_via_condition_and_matching(self):
-        Logger.setLevel(Logger.TRACE)
         kb = self._atomese('kb', '''
             (= (lamp dev:kitchen-lamp)  True)
             (= (lamp dev:bedroom-lamp)  True)
