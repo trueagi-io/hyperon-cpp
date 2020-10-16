@@ -538,7 +538,7 @@ static AtomPtr unification_result_to_expr(UnificationResult const& unification_r
 }
 
 static AtomPtr interpret_expr_step(GroundingSpace const& kb,
-    AtomPtr atom, bool reducted, std::function<void(AtomPtr)> callback) {
+    AtomPtr atom, bool reducted, std::function<void(AtomPtr, Bindings const*)> callback) {
     LOG_DEBUG << "interpreting atom: " << atom->to_string() << std::endl;
     if (atom->get_type() != Atom::EXPR) {
         return atom;
@@ -550,19 +550,24 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
         if (expr->get_children().size() < 3) {
             LOG_DEBUG << "interpreting expression after reduction" << std::endl;
             return interpret_expr_step(kb, sub_expr,
-                    true, [&callback](AtomPtr result) -> void {
-                        callback(result);
+                    true, [&callback](AtomPtr result, Bindings const* bindings) -> void {
+                        callback(result, bindings);
                     });
         } else {
             LOG_DEBUG << "interpret sub expression" << std::endl;
             ExprAtomPtr full_expr = std::static_pointer_cast<ExprAtom>(expr->get_children()[2]);
             AtomPtr result = interpret_expr_step(kb, sub_expr,
-                    false, [&callback, &full_expr](AtomPtr result) -> void {
-                        callback(E({ REDUCT, result, full_expr }));
+                    false, [&callback, &full_expr](AtomPtr result, Bindings const* bindings) -> void {
+                        AtomPtr applied = full_expr;
+                        if (bindings) {
+                            LOG_DEBUG << "apply bindings to full_expr" << std::endl;
+                            applied = apply_bindings_to_atom(full_expr, *bindings);
+                        }
+                        callback(E({ REDUCT, result, applied }), nullptr);
                     });
             if (result) {
                 LOG_DEBUG << "sub expression is not interpretable" << std::endl;
-                callback(reduct_next_arg(full_expr, result));
+                callback(reduct_next_arg(full_expr, result), nullptr);
             }
             return Atom::INVALID;
         }
@@ -575,7 +580,7 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
             if (result.success) {
                 for (auto const& result : result.results) {
                     LOG_DEBUG << "execution result: " << result->to_string() << std::endl;
-                    callback(result);
+                    callback(result, nullptr);
                 }
                 return Atom::INVALID;
             } else {
@@ -584,7 +589,7 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
             }
         } else {
             LOG_DEBUG << "reducting expression" << std::endl;
-            callback(reduct_first_arg(expr));
+            callback(reduct_first_arg(expr), nullptr);
             return Atom::INVALID;
         }
     } else {
@@ -600,13 +605,13 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
                 return expr;
             } else {
                 LOG_DEBUG << "reducting expression" << std::endl;
-                callback(reduct_first_arg(expr));
+                callback(reduct_first_arg(expr), nullptr);
                 return Atom::INVALID;
             }
         } else {
             LOG_DEBUG << "adding unification results" << std::endl; 
             for (auto const& result : results) {
-                callback(unification_result_to_expr(result, var));
+                callback(unification_result_to_expr(result, var), &result.b_bindings);
             }
             return Atom::INVALID;
         }
@@ -627,7 +632,7 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     AtomPtr atom = content.back();
     content.pop_back();
     LOG_DEBUG << "next atom: " << atom->to_string() << std::endl;
-    return interpret_expr_step(kb, atom, false, [this](AtomPtr result) -> void {
+    return interpret_expr_step(kb, atom, false, [this](AtomPtr result, Bindings const* bindings) -> void {
                 this->content.push_back(result);
             });
 }

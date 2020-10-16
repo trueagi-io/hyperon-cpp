@@ -54,16 +54,14 @@ class SmartHomeTest(unittest.TestCase):
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
 
-    # FIXME: works incorrectly because if is not lazy and
-    # lamps are turned on even if condition is True
-    def _test_turn_lamps_on_via_condition_and_matching(self):
+    def test_turn_lamps_on_via_condition_and_matching(self):
         Logger.setLevel(Logger.DEBUG)
         kb = self._atomese('kb', '''
             (= (if True $then $else) $then)
             (= (if False $then $else) $else)
             (= (lamp dev:kitchen-lamp)  True)
             (= (lamp dev:bedroom-lamp)  True)
-            (= (lamp dev:toilet)  False)
+            (= (lamp dev:kettle)  False)
             (= (turn_lamp_on) (if (lamp $x) (call:turn_on $x) nop))
         ''')
         target = self._atomese('target', '''
