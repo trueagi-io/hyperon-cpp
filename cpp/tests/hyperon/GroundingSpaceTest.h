@@ -4,12 +4,15 @@
 #include <hyperon/common/common.h>
 
 void add_factorial_definition(GroundingSpace& kb) {
-    kb.add_atom(E({ S("="), E({ S("f"), Int(0) }), Int(1) }));
+    kb.add_atom(E({ S("="), E({ S("if"), TRUE, V("x"), V("y") }), V("x") }));
+    kb.add_atom(E({ S("="), E({ S("if"), FALSE, V("x"), V("y") }), V("y") }));
     kb.add_atom(E({ S("="),
-                E({ S("f"), V("n") }),
-                E({ MUL,
-                        E({ S("f"), E({ SUB, V("n"), Int(1) }) }),
-                        V("n") }) }));
+                E({ S("fact"), V("n") }),
+                E({ S("if"), E({ EQ, Int(0), V("n") }),
+                        Int(1),
+                        E({ MUL,
+                                E({ S("fact"), E({ SUB, V("n"), Int(1) }) }),
+                                V("n") }) }) }));
 }
 
 class GroundingSpaceTest : public CxxTest::TestSuite {
@@ -27,11 +30,11 @@ public:
 
     void test_match_function_definition() {
         GroundingSpace kb;
-        kb.add_atom(E({ S(":-"), E({ S("f"), S("0") }), S("1") }));
-        kb.add_atom(E({ S(":-"), E({ S("f"), V("n") }),
+        kb.add_atom(E({ S(":-"), E({ S("fact"), S("0") }), S("1") }));
+        kb.add_atom(E({ S(":-"), E({ S("fact"), V("n") }),
                     E({ S("*"), V("n"), E({ S("-"), V("n"), S("1") }) }) }));
         GroundingSpace pattern;
-        pattern.add_atom(E({ S(":-"), E({ S("f"), S("5") }), V("x") }));
+        pattern.add_atom(E({ S(":-"), E({ S("fact"), S("5") }), V("x") }));
         GroundingSpace templ;
         templ.add_atom(V("x"));
 
@@ -81,25 +84,24 @@ public:
         --> call:turn_on dev:bedroom-lamp
     */
 
-    // FIXME: test is commented out until fix for function representation in KB
-    void _test_interpret_plain_expr() {
+    void test_interpret_plain_expr() {
+        Logger::setLevel(Logger::DEBUG);
         GroundingSpace kb;
         add_factorial_definition(kb);
         GroundingSpace target;
-        target.add_atom(E({ S("f"), Int(5) }));
+        target.add_atom(E({ S("fact"), Int(5) }));
 
         AtomPtr result = interpret_until_result(target, kb);
 
         TS_ASSERT(*Int(120) == *result);
     }
 
-    // FIXME: test is commented out until fix for function representation in KB
-    void _test_interpret_plain_expr_twice() {
+    void test_interpret_plain_expr_twice() {
         GroundingSpace kb;
         add_factorial_definition(kb);
         GroundingSpace target;
-        target.add_atom(E({ S("f"), Int(3) }));
-        target.add_atom(E({ S("f"), Int(5) }));
+        target.add_atom(E({ S("fact"), Int(3) }));
+        target.add_atom(E({ S("fact"), Int(5) }));
 
         AtomPtr result = interpret_until_result(target, kb);
         TS_ASSERT(*Int(120) == *result);

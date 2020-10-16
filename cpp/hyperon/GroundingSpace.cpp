@@ -454,20 +454,24 @@ static bool is_plain_expression(ExprAtomPtr expr) {
 
 class IfEqAtom : public GroundedAtom {
 public:
-    IfEqAtom() {}
+    IfEqAtom(AtomPtr expr) : expr(expr) {}
     virtual ~IfEqAtom() {}
 
     void execute(GroundingSpace const& args, GroundingSpace& result) const override {
         if (*args.get_content()[1] == *args.get_content()[2]) {
-            result.add_atom(args.get_content()[3]);
+            result.add_atom(expr);
         }
     }
 
-    bool operator==(Atom const& other) const override { return this == &other; }
+    bool operator==(Atom const& _other) const override {
+        IfEqAtom const* other = dynamic_cast<IfEqAtom const*>(&_other);
+        return other && *other->expr == *expr;
+    }
     std::string to_string() const override { return "pushifeq"; }
-};
 
-const std::shared_ptr<IfEqAtom> IFEQ = std::make_shared<IfEqAtom>();
+private:
+    AtomPtr expr;
+};
 
 const SymbolAtomPtr REDUCT = S("reduct");
 // FIXME: make AT symbol more unique
@@ -485,35 +489,33 @@ static bool find_next_expr(std::vector<AtomPtr>::iterator& it,
 }
 
 static AtomPtr reduct_first_arg(ExprAtomPtr expr) {
-    auto it = expr->get_children().begin() + 1;
-    if (!find_next_expr(it, expr->get_children().end())) {
+    std::vector<AtomPtr> children = expr->get_children();
+    auto it = children.begin() + 1;
+    if (!find_next_expr(it, children.end())) {
         throw std::runtime_error("Could not find first expression argument");
     }
     AtomPtr arg = *it;
     *it = AT;
-    return E({REDUCT, arg, expr});
+    return E({REDUCT, arg, E(children)});
 }
 
 static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
-    std::vector<AtomPtr> children;
-    children.resize(expr->get_children().size());
-    auto it = expr->get_children().begin();
-    auto out = children.begin();
-    while (it != expr->get_children().end()) {
+    std::vector<AtomPtr> children = expr->get_children();
+    auto it = children.begin() + 1;
+    while (it != children.end()) {
         if (*it == AT) {
-            *out++ = value;
+            *it = value;
             break;
         }
-        *out++ = *it++;
+        it++;
     }
     if (it == expr->get_children().end()) {
         throw std::runtime_error("Could not find placeholder to replace by value");
     }
     it++;
-    std::copy(it, expr->get_children().end(), out);
-    if (find_next_expr(out, children.end())) {
-        AtomPtr arg = *out;
-        *out = AT;
+    if (find_next_expr(it, children.end())) {
+        AtomPtr arg = *it;
+        *it = AT;
         return E({REDUCT, arg, E(children)});
     } else {
         return E({REDUCT, E(children)});
@@ -525,7 +527,7 @@ static AtomPtr generate_if_eq_recursively(Unifications::const_reverse_iterator i
     if (i == end) {
         return expr;
     }
-    return E({IFEQ, i->a, i->b, generate_if_eq_recursively(i + 1, end, expr)});
+    return E({std::make_shared<IfEqAtom>(generate_if_eq_recursively(i + 1, end, expr)), i->a, i->b});
 }
 
 static AtomPtr unification_result_to_expr(UnificationResult const& unification_result,
@@ -549,7 +551,7 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
             LOG_DEBUG << "interpreting expression after reduction" << std::endl;
             return interpret_expr_step(kb, sub_expr,
                     true, [&callback](AtomPtr result) -> void {
-                        callback(E({ REDUCT, result }));
+                        callback(result);
                     });
         } else {
             LOG_DEBUG << "interpret sub expression" << std::endl;
