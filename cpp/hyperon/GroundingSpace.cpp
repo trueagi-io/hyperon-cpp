@@ -454,24 +454,20 @@ static bool is_plain_expression(ExprAtomPtr expr) {
 
 class IfEqAtom : public GroundedAtom {
 public:
-    IfEqAtom(AtomPtr expr) : expr(expr) {}
+    IfEqAtom() {}
     virtual ~IfEqAtom() {}
 
     void execute(GroundingSpace const& args, GroundingSpace& result) const override {
         if (*args.get_content()[1] == *args.get_content()[2]) {
-            result.add_atom(expr);
+            result.add_atom(args.get_content()[3]);
         }
     }
 
-    bool operator==(Atom const& _other) const override {
-        IfEqAtom const* other = dynamic_cast<IfEqAtom const*>(&_other);
-        return other && *other->expr == *expr;
-    }
+    bool operator==(Atom const& other) const override { return this == &other; }
     std::string to_string() const override { return "ifeq"; }
-
-private:
-    AtomPtr expr;
 };
+
+const GroundedAtomPtr IFEQ = std::make_shared<IfEqAtom>();
 
 const SymbolAtomPtr REDUCT = S("reduct");
 // FIXME: make AT symbol more unique
@@ -502,12 +498,16 @@ static AtomPtr reduct_first_arg(ExprAtomPtr expr) {
 static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
     std::vector<AtomPtr> children = expr->get_children();
     auto it = children.begin();
+    bool ifeq = *it == IFEQ;
     while (it != children.end()) {
         if (*it == AT) {
             *it = value;
             break;
         }
         it++;
+    }
+    if (ifeq && it == children.begin() + 2) {
+        return E({REDUCT, E(children)});
     }
     if (it == expr->get_children().end()) {
         throw std::runtime_error("Could not find placeholder to replace by value");
@@ -527,7 +527,7 @@ static AtomPtr generate_if_eq_recursively(Unifications::const_reverse_iterator i
     if (i == end) {
         return expr;
     }
-    return E({std::make_shared<IfEqAtom>(generate_if_eq_recursively(i + 1, end, expr)), i->a, i->b});
+    return E({IFEQ, i->a, i->b, generate_if_eq_recursively(i + 1, end, expr)});
 }
 
 static AtomPtr unification_result_to_expr(UnificationResult const& unification_result,
