@@ -2,19 +2,15 @@
 #include <memory>
 #include <iostream>
 
-#include <hyperon/logger.h>
-#include <hyperon/GroundingSpace.h>
-#include <hyperon/TextSpace.h>
-
-#include "common.h"
-#include "GroundedArithmetic.h"
+#include <hyperon/hyperon.h>
+#include <hyperon/common/common.h>
 
 class GroundedSymbolTest : public CxxTest::TestSuite {
 public:
 
     void test_plus_int() {
         GroundingSpace targets;
-        targets.add_atom(E({Plus(), Int(1), Int(2)}));
+        targets.add_atom(E({ADD, Int(1), Int(2)}));
 
         AtomPtr result = interpret_until_result(targets, GroundingSpace());
 
@@ -26,7 +22,7 @@ public:
         text_kb.register_token(std::regex("\\d+(\\.\\d+)?"),
                 [] (std::string str) -> GroundedAtomPtr { return Float(std::stof(str)); });
         text_kb.register_token(std::regex("\\+"),
-                [] (std::string str) -> GroundedAtomPtr { return Plus(); });
+                [] (std::string str) -> GroundedAtomPtr { return ADD; });
         text_kb.add_string("(+ 2.0 1.0)");
         GroundingSpace targets;
         targets.add_from_space(text_kb);
@@ -46,11 +42,11 @@ public:
                 });
         text_kb.register_token(std::regex("\\+"),
                 [] (std::string str) -> GroundedAtomPtr {
-                    return Plus();    
+                    return ADD;    
                 });
         text_kb.register_token(std::regex("\\+\\+"),
                 [] (std::string str) -> GroundedAtomPtr {
-                    return Concat();
+                    return CONCAT;
                 });
         text_kb.add_string("(= (a) 1.0)");
         text_kb.add_string("(= (x) (+ (a) 2.0))");

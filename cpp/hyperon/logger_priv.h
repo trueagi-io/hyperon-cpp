@@ -40,4 +40,9 @@ extern LoggerImpl trace;
 
 };
 
+#define LOG_ERROR (clog::error << "ERROR: " << __func__ << ": ")
+#define LOG_INFO (clog::info << "INFO:  " << __func__ << ": ")
+#define LOG_DEBUG (clog::debug << "DEBUG: " << __func__ << ": ")
+#define LOG_TRACE (clog::trace << "TRACE: " << __func__ << ": ")
+
 #endif /* LOGGER_PRIV_H */

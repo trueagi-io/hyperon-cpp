@@ -1,8 +1,8 @@
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef INTERPRET_H
+#define INTERPRET_H
 
 #include <hyperon/GroundingSpace.h>
 
 AtomPtr interpret_until_result(GroundingSpace& target, GroundingSpace const& kb);
 
-#endif /* COMMON_H */
+#endif /* INTERPRET_H */

@@ -1,12 +1,8 @@
 FIND_PACKAGE(CxxTest REQUIRED)
 
-ADD_LIBRARY(common STATIC common.cpp GroundedArithmetic.cpp)
-
 MACRO(ADD_CXXTEST)
 	CXXTEST_ADD_TEST(${ARGV0} ${ARGV0}.cpp ${CMAKE_CURRENT_SOURCE_DIR}/${ARGV0}.h)
-	TARGET_LINK_LIBRARIES(${ARGV0} hyperon common)
+	TARGET_LINK_LIBRARIES(${ARGV0} hyperon hyperon_common)
 ENDMACRO()
 
-ADD_CXXTEST(GroundingSpaceTest)
-ADD_CXXTEST(TextSpaceTest)
-ADD_CXXTEST(GroundedArithmeticTest)
+ADD_SUBDIRECTORY(hyperon)

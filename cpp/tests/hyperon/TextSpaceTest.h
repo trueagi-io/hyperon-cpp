@@ -1,7 +1,6 @@
 #include <cxxtest/TestSuite.h>
 
-#include <hyperon/GroundingSpace.h>
-#include <hyperon/TextSpace.h>
+#include <hyperon/hyperon.h>
 
 class FloatAtom : public ValueAtom<float> {
 public:

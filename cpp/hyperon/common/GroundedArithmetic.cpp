@@ -1,9 +1,4 @@
-#ifndef GROUNDED_ARITHMETIC_H
-#define GROUNDED_ARITHMETIC_H
-
-#include <hyperon/GroundingSpace.h>
-#include <stdexcept>
-#include <string>
+#include "GroundedArithmetic.h"
 
 template<typename T>
 class BinaryOpAtom : public GroundedAtom {
@@ -25,60 +20,18 @@ public:
     }
     virtual T* operator() (T const* a, T const* b) const = 0;
     bool operator==(Atom const& _other) const override { 
-        return dynamic_cast<T const*>(&_other);
+        return this == &_other;
     }
     std::string to_string() const override { return symbol; }
 private:
     std::string symbol;
 };
 
-struct NumValue {
-    enum Type {
-        INT,
-        FLOAT
-    } type;
-    union {
-        int i;
-        float f;
-    } value;
-    std::string to_string() const { return type == INT ? std::to_string(value.i) : std::to_string(value.f); }
-    template<typename T> T get();
-};
-
-template<> inline int NumValue::get<int>() {
-    if (type == INT) {
-        return value.i;
-    } else {
-        throw std::runtime_error("Converting float to int will lost precision");
-    }
-}
-
-template<> inline float NumValue::get<float>() {
-    if (type == INT) {
-        return value.i;
-    } else {
-        return value.f;
-    }
-}
-
-inline bool operator==(NumValue a, NumValue b) {
-    return a.type == b.type && 
-        a.type == NumValue::FLOAT ? a.value.f == b.value.f : a.value.i == b.value.i;
-}
-
-class NumAtom : public ValueAtom<NumValue> {
-public:
-    NumAtom(int value) : ValueAtom({ NumValue::INT, { .i = value, } }) {}
-    NumAtom(float value) : ValueAtom({ NumValue::FLOAT, { .f = value } }) {}
-    virtual ~NumAtom() {}
-    std::string to_string() const override { return ValueAtom::get().to_string(); }
-};
-
 class NumBinaryOpAtom : public BinaryOpAtom<NumAtom> {
 public:
     NumBinaryOpAtom(std::string op) : BinaryOpAtom(op) { }
     virtual ~NumBinaryOpAtom() {}
-    virtual NumAtom* operator() (NumAtom const* a, NumAtom const* b) const override {
+    NumAtom* operator() (NumAtom const* a, NumAtom const* b) const override {
         if (a->get().type == NumValue::FLOAT || b->get().type == NumValue::FLOAT) {
             return new NumAtom(operator()(a->get().get<float>(), b->get().get<float>()));
         } else {
@@ -91,7 +44,6 @@ public:
 
 class MulAtom : public NumBinaryOpAtom {
 public:
-    static std::shared_ptr<MulAtom> INSTANCE;
     MulAtom() : NumBinaryOpAtom("*") { }
     int operator() (int a, int b) const override { return a * b; }
     float operator() (float a, float b) const override { return a * b; }
@@ -99,7 +51,6 @@ public:
 
 class SubAtom : public NumBinaryOpAtom {
 public:
-    static std::shared_ptr<SubAtom> INSTANCE;
     SubAtom() : NumBinaryOpAtom("-") { }
     int operator() (int a, int b) const override { return a - b; }
     float operator() (float a, float b) const override { return a - b; }
@@ -107,7 +58,6 @@ public:
 
 class PlusAtom : public NumBinaryOpAtom {
 public:
-    static std::shared_ptr<PlusAtom> INSTANCE;
     PlusAtom() : NumBinaryOpAtom("+") { }
     int operator() (int a, int b) const override { return a + b; }
     float operator() (float a, float b) const override { return a + b; }
@@ -115,37 +65,23 @@ public:
 
 class DivAtom : public NumBinaryOpAtom {
 public:
-    static std::shared_ptr<DivAtom> INSTANCE;
     DivAtom() : NumBinaryOpAtom("/") { }
     int operator() (int a, int b) const override { return a / b; }
     float operator() (float a, float b) const override { return a / b; }
 };
 
-inline std::shared_ptr<SubAtom> Sub() { return SubAtom::INSTANCE; }
-inline std::shared_ptr<MulAtom> Mul() { return MulAtom::INSTANCE; }
-inline std::shared_ptr<PlusAtom> Plus() { return PlusAtom::INSTANCE; }
-inline std::shared_ptr<DivAtom> Div() { return DivAtom::INSTANCE; }
-inline std::shared_ptr<NumAtom> Int(int x) { return std::make_shared<NumAtom>(x); }
-inline std::shared_ptr<NumAtom> Float(float x) { return std::make_shared<NumAtom>(x); }
-
-class StringAtom : public ValueAtom<std::string> {
-public:
-    StringAtom(std::string value) : ValueAtom(value) {}
-    virtual ~StringAtom() {}
-    std::string to_string() const override { return "\"" + get() + "\""; }
-};
-
+const GroundedAtomPtr MUL = std::make_shared<MulAtom>();
+const GroundedAtomPtr SUB = std::make_shared<SubAtom>();
+const GroundedAtomPtr ADD = std::make_shared<PlusAtom>();
+const GroundedAtomPtr DIV = std::make_shared<DivAtom>();
 
 class ConcatAtom : public BinaryOpAtom<StringAtom> {
 public:
-    static std::shared_ptr<ConcatAtom> INSTANCE;
     ConcatAtom() : BinaryOpAtom("++") {}
     virtual StringAtom* operator() (StringAtom const* a, StringAtom const* b) const override {
         return new StringAtom(a->get() + b->get());
     }
 };
 
-inline std::shared_ptr<ConcatAtom> Concat() { return ConcatAtom::INSTANCE; };
-inline std::shared_ptr<StringAtom> String(std::string str) { return std::make_shared<StringAtom>(str); }
+const GroundedAtomPtr CONCAT = std::make_shared<ConcatAtom>();
 
-#endif /* GROUNDED_ARITHMETIC_H */

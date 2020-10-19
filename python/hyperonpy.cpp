@@ -157,7 +157,7 @@ PYBIND11_MODULE(hyperonpy, m) {
                     self->add_atom(py_shared_ptr<Atom>(atom));
                 })
         .def("interpret_step", &GroundingSpace::interpret_step)
-        .def("match", &GroundingSpace::match)
+        .def("match", (void (GroundingSpace::*)(SpaceAPI const&, SpaceAPI const&, GroundingSpace&) const) &GroundingSpace::match)
         .def("get_content", &GroundingSpace::get_content)
         .def("__eq__", &GroundingSpace::operator==)
         .def("__repr__", &GroundingSpace::to_string);

@@ -2,7 +2,7 @@ import unittest
 import re
 
 from hyperon import *
-from common import inteprep_until_result, SpacesAtom, MatchAtom
+from common import interpret_until_result, SpacesAtom, MatchAtom
 
 class SmartHomeTest(unittest.TestCase):
 
@@ -11,7 +11,6 @@ class SmartHomeTest(unittest.TestCase):
         self.spaces = {}
 
     def test_turn_lamps_on_via_grounded_match(self):
-        Logger.setLevel(Logger.TRACE)
         kb = GroundingSpace()
         kb.add_atom(E(S("isa"), self._get_device("bedroom-lamp"), S("lamp")))
         kb.add_atom(E(S("isa"), self._get_device("kitchen-lamp"), S("lamp")))
@@ -22,7 +21,7 @@ class SmartHomeTest(unittest.TestCase):
             E(S("isa"), V("x"), S("lamp")),
             E(CallAtom("turn_on"), V("x"))))
 
-        result = inteprep_until_result(target, GroundingSpace())
+        interpret_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
@@ -36,10 +35,47 @@ class SmartHomeTest(unittest.TestCase):
             (match (spaces kb) (isa $x lamp) (call:turn_on $x))
         ''')
 
-        result = inteprep_until_result(target, GroundingSpace())
+        interpret_until_result(target, GroundingSpace())
 
         self.assertTrue(self._get_device("kitchen-lamp").is_on)
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
+
+    def test_turn_lamps_on_via_interpreter_matching(self):
+        kb = self._atomese('kb', '''
+            (= (lamp) dev:kitchen-lamp)
+            (= (lamp) dev:bedroom-lamp)
+        ''')
+        target = self._atomese('target', '''
+            (call:turn_on (lamp))
+        ''')
+
+        interpret_until_result(target, kb)
+
+        self.assertTrue(self._get_device("kitchen-lamp").is_on)
+        self.assertTrue(self._get_device("bedroom-lamp").is_on)
+
+    def test_turn_lamps_on_via_condition_and_matching(self):
+        Logger.setLevel(Logger.DEBUG)
+        kb = self._atomese('kb', '''
+            (= (if True $then $else) $then)
+            (= (if False $then $else) $else)
+            (= (lamp dev:kitchen-lamp)  True)
+            (= (lamp dev:bedroom-lamp)  True)
+            (= (lamp dev:kettle)  False)
+            (= (turn_lamp_on) (if (lamp $x) (call:turn_on $x) nop))
+        ''')
+        target = self._atomese('target', '''
+            (turn_lamp_on)
+        ''')
+
+        interpret_until_result(target, kb)
+        interpret_until_result(target, kb)
+        interpret_until_result(target, kb)
+
+        self.assertTrue(self._get_device("kitchen-lamp").is_on)
+        self.assertTrue(self._get_device("bedroom-lamp").is_on)
+        self.assertFalse(self._get_device("toilet").is_on)
+
 
     def _get_device(self, name):
         if not name in self.devices:
@@ -53,6 +89,7 @@ class SmartHomeTest(unittest.TestCase):
         text.register_token("match", lambda token: MatchAtom())
         text.register_token("dev:\\S+", lambda token: self._get_device(token[4:]))
         text.register_token("call:\\S+", lambda token: CallAtom(token[5:]))
+        text.register_token("True|False", lambda token: ValueAtom(token == 'True'))
         text.add_string(program)
         kb.add_from_space(text)
         self.spaces[name] = kb
@@ -68,7 +105,7 @@ class DeviceAtom(GroundedAtom):
 
     def turn_on(self):
         self.is_on = True
-        print("light is on")
+        print(self.name + " light is on")
 
     def __eq__(self, other):
         if isinstance(other, DeviceAtom):

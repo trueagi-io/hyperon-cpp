@@ -1,6 +1,6 @@
 from hyperon import *
 
-def inteprep_until_result(target, kb):
+def interpret_until_result(target, kb):
     result = None
     while not result:
         result = target.interpret_step(kb)
@@ -22,10 +22,6 @@ class SpacesAtom(GroundedAtom):
 
     def __repr__(self):
         return "spaces"
-
-        if not name in self.devices:
-            self.devices[name] = DeviceAtom(name)
-        return self.devices[name]
 
 class MatchAtom(GroundedAtom):
 
