@@ -9,12 +9,12 @@ class SmartHomeTest(unittest.TestCase):
     def setUp(self):
         self.devices = {}
         self.atomese = Atomese()
-        self.atomese.add_token("dev:[^\\s)]+", lambda token: self._get_device(token[4:]))
+        self.atomese.add_token("dev:[^\\s)]+", lambda token: ValueAtom(self._get_device(token[4:])))
 
     def test_turn_lamps_on_via_grounded_match(self):
         kb = GroundingSpace()
-        kb.add_atom(E(S("isa"), self._get_device("bedroom-lamp"), S("lamp")))
-        kb.add_atom(E(S("isa"), self._get_device("kitchen-lamp"), S("lamp")))
+        kb.add_atom(E(S("isa"), ValueAtom(self._get_device("bedroom-lamp")), S("lamp")))
+        kb.add_atom(E(S("isa"), ValueAtom(self._get_device("kitchen-lamp")), S("lamp")))
 
         target = GroundingSpace()
         target.add_atom(E(MatchAtom(),
@@ -81,24 +81,18 @@ class SmartHomeTest(unittest.TestCase):
 
     def _get_device(self, name):
         if not name in self.devices:
-            self.devices[name] = DeviceAtom(name)
+            self.devices[name] = Device(name)
         return self.devices[name]
 
-class DeviceAtom(GroundedAtom):
+class Device():
 
     def __init__(self, name):
-        GroundedAtom.__init__(self)
         self.name = name
         self.is_on = False
 
     def turn_on(self):
         self.is_on = True
         print(self.name + " light is on")
-
-    def __eq__(self, other):
-        if isinstance(other, DeviceAtom):
-            return self.name == other.name
-        return False
 
     def __repr__(self):
         return "dev:" + self.name

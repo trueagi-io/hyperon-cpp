@@ -133,7 +133,7 @@ class CallAtom(GroundedAtom):
         self.method_name = method_name
 
     def execute(self, args, result):
-        obj = args.get_content()[1]
+        obj = args.get_content()[1].value
         method = getattr(obj, self.method_name)
         method()
 

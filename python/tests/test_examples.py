@@ -58,5 +58,18 @@ class MatchingTest(unittest.TestCase):
 
         interpret_and_print_results(target, kb)
 
+    def test_grounded_functions(self):
+        atomese = Atomese()
+
+        atomese.add_atom("obj", ValueAtom(SomeObject()))
+        target = atomese.parse('(call:foo obj)')
+
+        interpret_and_print_results(target, GroundingSpace())
+
+class SomeObject():
+
+    def foo(self):
+        print("foo called")
+
 if __name__ == "__main__":
     unittest.main()
