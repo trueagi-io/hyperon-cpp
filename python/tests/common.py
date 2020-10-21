@@ -126,10 +126,29 @@ class NotAtom(BinaryOpAtom):
     def __init__(self):
         BinaryOpAtom.__init__(self, "not", lambda a: not a)
 
+class CallAtom(GroundedAtom):
+
+    def __init__(self, method_name):
+        GroundedAtom.__init__(self)
+        self.method_name = method_name
+
+    def execute(self, args, result):
+        obj = args.get_content()[1]
+        method = getattr(obj, self.method_name)
+        method()
+
+    def __eq__(self, other):
+        if isinstance(other, CallAtom):
+            return self.method_name == other.method_name
+        return False
+
+    def __repr__(self):
+        return "call:" + self.method_name
+
 class Atomese:
 
     def __init__(self):
-        self.symbols = {}
+        self.tokens = {}
 
     def _parser(self):
         parser = TextSpace()
@@ -148,8 +167,9 @@ class Atomese:
         parser.register_token("'[^']*'", lambda token: ValueAtom(str(token)))
         parser.register_token("True|False", lambda token: ValueAtom(token == 'True'))
         parser.register_token("match", lambda token: MatchAtom())
-        for name in self.symbols.keys():
-            parser.register_token(name, lambda _: self.symbols[name])
+        parser.register_token("call:\\S+", lambda token: CallAtom(token[5:]))
+        for regexp in self.tokens.keys():
+            parser.register_token(regexp, self.tokens[regexp])
         return parser
 
     def parse(self, program):
@@ -159,5 +179,8 @@ class Atomese:
         kb.add_from_space(text)
         return kb
 
-    def add_symbol(self, name, symbol):
-        self.symbols[name] = symbol
+    def add_token(self, regexp, constr):
+        self.tokens[regexp] = constr
+
+    def add_atom(self, name, symbol):
+        self.add_token(name, lambda _: symbol)

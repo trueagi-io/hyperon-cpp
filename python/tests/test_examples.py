@@ -15,7 +15,7 @@ class MatchingTest(unittest.TestCase):
             (isa blue color)
         ''')
 
-        atomese.add_symbol("kb", ValueAtom(kb))
+        atomese.add_atom("kb", ValueAtom(kb))
         target = atomese.parse('''(match kb (isa $color color) $color)''')
 
         while True:
