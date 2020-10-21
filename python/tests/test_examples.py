@@ -66,6 +66,26 @@ class MatchingTest(unittest.TestCase):
 
         interpret_and_print_results(target, GroundingSpace())
 
+    def test_frog_reasoning(self):
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+            (= (if True $then $else) $then)
+            (= (if False $then $else) $else)
+            (= (Fritz croaks) True)
+            (= (Tweety chirps) True)
+            (= (Tweety yellow) True)
+            (= (Tweety eats_flies) True)
+            (= (Fritz eats_flies) True)
+        ''')
+
+        # (if ($x frog) (= ($x green) True) nop)
+        target = atomese.parse('''
+            (if (and ($x croaks) ($x eats_flies)) (= ($x frog) True) nop)
+        ''')
+
+        interpret_and_print_results(target, kb)
+
 class SomeObject():
 
     def foo(self):

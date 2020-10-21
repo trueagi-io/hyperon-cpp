@@ -556,7 +556,7 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
                             LOG_DEBUG << "apply bindings to full_expr" << std::endl;
                             applied = apply_bindings_to_atom(full_expr, *bindings);
                         }
-                        callback(E({ REDUCT, result, applied }), nullptr);
+                        callback(E({ REDUCT, result, applied }), bindings);
                     });
             if (result) {
                 LOG_DEBUG << "sub expression is not interpretable" << std::endl;
