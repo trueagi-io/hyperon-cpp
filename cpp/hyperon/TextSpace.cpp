@@ -1,3 +1,4 @@
+#include <regex>
 #include <stdexcept>
 
 #include "TextSpace.h"
@@ -32,10 +33,12 @@ static void parse_error(char const* text, char const* pos, std::string message) 
     throw std::runtime_error(message + "\n" + show_position(text, pos));
 }
 
-AtomPtr TextSpace::find_token(std::string token) const {
+AtomPtr TextSpace::find_token(char const*& text) const {
     for (auto const& pair : tokens) {
-        if (std::regex_match(token, pair.first)) {
-            return pair.second(token);
+        std::cmatch match;
+        if (std::regex_search(text, match, pair.first, std::regex_constants::match_continuous)) {
+            text += match.length();
+            return pair.second(match.str());
         }
     }
     return Atom::INVALID;
@@ -75,11 +78,11 @@ TextSpace::ParseResult  TextSpace::recursive_parse(char const* text, char const*
             return { Atom::INVALID, true };
         default:
             {
-                std::string token = next_token(pos);
-                AtomPtr atom = find_token(token);
+                AtomPtr atom = find_token(pos);
                 if (atom) {
                     return { atom, false };
                 } else {
+                    std::string token = next_token(pos);
                     return { S(token), false };
                 }
             }

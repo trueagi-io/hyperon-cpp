@@ -40,13 +40,13 @@ public:
                 [] (std::string str) -> GroundedAtomPtr {
                     return String(str.substr(1, str.size() - 2));    
                 });
-        text_kb.register_token(std::regex("\\+"),
-                [] (std::string str) -> GroundedAtomPtr {
-                    return ADD;    
-                });
         text_kb.register_token(std::regex("\\+\\+"),
                 [] (std::string str) -> GroundedAtomPtr {
                     return CONCAT;
+                });
+        text_kb.register_token(std::regex("\\+"),
+                [] (std::string str) -> GroundedAtomPtr {
+                    return ADD;    
                 });
         text_kb.add_string("(= (a) 1.0)");
         text_kb.add_string("(= (x) (+ (a) 2.0))");

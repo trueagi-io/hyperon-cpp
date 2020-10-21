@@ -162,12 +162,12 @@ class Atomese:
         parser.register_token("or", lambda token: OrAtom())
         parser.register_token("and", lambda token: AndAtom())
         parser.register_token("not", lambda token: NotAtom())
-        parser.register_token("\\d+(.\\d+)", lambda token: ValueAtom(float(token)))
+        parser.register_token("\\d+(\.\\d+)", lambda token: ValueAtom(float(token)))
         parser.register_token("\\d+", lambda token: ValueAtom(int(token)))
-        parser.register_token("'[^']*'", lambda token: ValueAtom(str(token)))
+        parser.register_token("'[^']*'", lambda token: ValueAtom(str(token[1:-1])))
         parser.register_token("True|False", lambda token: ValueAtom(token == 'True'))
         parser.register_token("match", lambda token: MatchAtom())
-        parser.register_token("call:\\S+", lambda token: CallAtom(token[5:]))
+        parser.register_token("call:[^\\s)]+", lambda token: CallAtom(token[5:]))
         for regexp in self.tokens.keys():
             parser.register_token(regexp, self.tokens[regexp])
         return parser

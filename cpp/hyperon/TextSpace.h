@@ -45,7 +45,7 @@ private:
 
     struct ParseResult;
 
-    AtomPtr find_token(std::string token) const;
+    AtomPtr find_token(const char*& text) const;
     ParseResult  recursive_parse(char const* text, char const*& pos) const;
     void parse(std::string text, std::function<void(AtomPtr)> add) const;
 

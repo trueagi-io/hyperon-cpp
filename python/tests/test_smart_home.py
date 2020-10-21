@@ -9,7 +9,7 @@ class SmartHomeTest(unittest.TestCase):
     def setUp(self):
         self.devices = {}
         self.atomese = Atomese()
-        self.atomese.add_token("dev:\\S+", lambda token: self._get_device(token[4:]))
+        self.atomese.add_token("dev:[^\\s)]+", lambda token: self._get_device(token[4:]))
 
     def test_turn_lamps_on_via_grounded_match(self):
         kb = GroundingSpace()
