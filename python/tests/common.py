@@ -49,3 +49,43 @@ class MatchAtom(GroundedAtom):
     def __repr__(self):
         return "match"
 
+class BinaryOpAtom(GroundedAtom):
+
+    def __init__(self, op):
+        GroundedAtom.__init__(self)
+        self.op = op;
+
+    def execute(self, args, result):
+        a = args.get_content()[1]
+        b = args.get_content()[2]
+        result.add_atom(ValueAtom(self.do(a.value, b.value)));
+
+    def __eq__(self, other):
+        return isinstance(other, BinaryOpAtom) and self.op == other.op
+
+    def __repr__(self):
+        return self.op
+
+class SubAtom(BinaryOpAtom):
+
+    def __init__(self):
+        BinaryOpAtom.__init__(self, "-")
+
+    def do(self, a, b):
+        return a - b
+
+class MulAtom(BinaryOpAtom):
+
+    def __init__(self):
+        BinaryOpAtom.__init__(self, "*")
+
+    def do(self, a, b):
+        return a * b
+
+class EqualAtom(BinaryOpAtom):
+
+    def __init__(self):
+        BinaryOpAtom.__init__(self, "==")
+
+    def do(self, a, b):
+        return a == b
