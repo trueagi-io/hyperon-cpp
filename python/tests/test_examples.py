@@ -10,6 +10,7 @@ def interpret_and_print_results(target, kb):
         if next == S('eos'):
             break
         print(next)
+        kb.add_atom(next)
 
 class MatchingTest(unittest.TestCase):
 
@@ -79,8 +80,8 @@ class MatchingTest(unittest.TestCase):
             (= (Fritz eats_flies) True)
         ''')
 
-        # (if ($x frog) (= ($x green) True) nop)
         target = atomese.parse('''
+            (if ($x frog) (= ($x green) True) nop)
             (if (and ($x croaks) ($x eats_flies)) (= ($x frog) True) nop)
         ''')
 

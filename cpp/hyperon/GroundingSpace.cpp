@@ -604,7 +604,12 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
         } else {
             LOG_DEBUG << "adding unification results" << std::endl; 
             for (auto const& result : results) {
-                callback(unification_result_to_expr(result, var), &result.b_bindings);
+                auto expr = result.b_bindings.find(var);
+                // TODO: the situation when (= ... $X) matched symbol not
+                // expression
+                if (expr != result.b_bindings.end()) {
+                    callback(unification_result_to_expr(result, var), &result.b_bindings);
+                }
             }
             return Atom::INVALID;
         }
