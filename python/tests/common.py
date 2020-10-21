@@ -49,3 +49,48 @@ class MatchAtom(GroundedAtom):
     def __repr__(self):
         return "match"
 
+class BinaryOpAtom(GroundedAtom):
+
+    def __init__(self, name, op):
+        GroundedAtom.__init__(self)
+        self.name = name
+        self.op = op
+
+    def execute(self, args, result):
+        a = args.get_content()[1]
+        b = args.get_content()[2]
+        result.add_atom(ValueAtom(self.op(a.value, b.value)));
+
+    def __eq__(self, other):
+        return isinstance(other, BinaryOpAtom) and self.name == self.name
+
+    def __repr__(self):
+        return self.name
+
+class SubAtom(BinaryOpAtom):
+    def __init__(self):
+        BinaryOpAtom.__init__(self, "-", lambda a, b: a - b)
+
+class MulAtom(BinaryOpAtom):
+    def __init__(self):
+        BinaryOpAtom.__init__(self, "*", lambda a, b: a * b)
+
+class PlusAtom(BinaryOpAtom):
+    def __init__(self):
+        BinaryOpAtom.__init__(self, "+", lambda a, b: a + b)
+
+class DivAtom(BinaryOpAtom):
+    def __init__(self):
+        BinaryOpAtom.__init__(self, "/", lambda a, b: a / b)
+
+class EqualAtom(BinaryOpAtom):
+    def __init__(self):
+        BinaryOpAtom.__init__(self, "==", lambda a, b: a == b)
+
+class GreaterAtom(BinaryOpAtom):
+    def __init__(self):
+        BinaryOpAtom.__init__(self, ">", lambda a, b: a > b)
+
+class LessAtom(BinaryOpAtom):
+    def __init__(self):
+        BinaryOpAtom.__init__(self, "<", lambda a, b: a < b)
