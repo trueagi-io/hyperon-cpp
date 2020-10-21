@@ -19,7 +19,7 @@ class SmartHomeTest(unittest.TestCase):
         target.add_atom(E(MatchAtom(),
             ValueAtom(kb),
             E(S("isa"), V("x"), S("lamp")),
-            E(CallAtom("turn_on"), V("x"))))
+            E(S("q"), CallAtom("turn_on"), V("x"))))
 
         interpret_until_result(target, GroundingSpace())
 
@@ -32,7 +32,7 @@ class SmartHomeTest(unittest.TestCase):
             (isa dev:bedroom-lamp lamp)
         ''')
         target = self._atomese('target', '''
-            (match (spaces kb) (isa $x lamp) (call:turn_on $x))
+            (match (spaces kb) (isa $x lamp) (q call:turn_on $x))
         ''')
 
         interpret_until_result(target, GroundingSpace())
@@ -55,7 +55,6 @@ class SmartHomeTest(unittest.TestCase):
         self.assertTrue(self._get_device("bedroom-lamp").is_on)
 
     def test_turn_lamps_on_via_condition_and_matching(self):
-        Logger.setLevel(Logger.DEBUG)
         kb = self._atomese('kb', '''
             (= (if True $then $else) $then)
             (= (if False $then $else) $else)

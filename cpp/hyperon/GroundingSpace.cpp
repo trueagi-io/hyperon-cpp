@@ -331,19 +331,12 @@ static ExecutionResult execute_grounded_expression(ExprAtomPtr expr) {
     // are put into current atomspace. Should we return new child atomspace
     // instead?
     auto children = expr->get_children();
-    // FIXME: temporary hack: if grounded atom has variables don't execute it
-    bool has_variables = std::any_of(children.cbegin(), children.cend(),
-            [](auto const& child) -> bool { return child->get_type() == Atom::VARIABLE; });
-    if (!has_variables) {
-        GroundingSpace args(children);
-        LOG_DEBUG << "args: \"" << args.to_string() << "\"" << std::endl;
-        GroundingSpace results;
-        func->execute(args, results);
-        LOG_DEBUG << "results: \"" << results.to_string() << "\"" << std::endl;
-        return { true, results.get_content() };
-    }
-    LOG_DEBUG << "skip execution because atom has unbound variables as arguments" << std::endl;
-    return { false };
+    GroundingSpace args(children);
+    LOG_DEBUG << "args: \"" << args.to_string() << "\"" << std::endl;
+    GroundingSpace results;
+    func->execute(args, results);
+    LOG_DEBUG << "results: \"" << results.to_string() << "\"" << std::endl;
+    return { true, results.get_content() };
 }
 
 static AtomPtr match_plain_nongrounded_expression(GroundingSpace const& kb, ExprAtomPtr expr, AtomPtr templ, GroundingSpace& target) {

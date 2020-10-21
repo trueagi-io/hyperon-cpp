@@ -35,8 +35,10 @@ class MatchAtom(GroundedAtom):
         pattern.add_atom(content[2])
         templ = GroundingSpace()
         # FIXME: hack to make both quoted and unquoted expression work
-        templ_op = content[3].get_children()[0]
-        if templ_op.get_type() == Atom.SYMBOL and templ_op.get_symbol() == 'q':
+        templ_op = content[3]
+        if (templ_op.get_type() == Atom.EXPR and
+            templ_op.get_children()[0].get_type() == Atom.SYMBOL and
+            templ_op.get_children()[0].get_symbol() == 'q'):
             quoted = content[3].get_children()[1:]
             templ.add_atom(E(*quoted))
         else:
@@ -124,28 +126,38 @@ class NotAtom(BinaryOpAtom):
     def __init__(self):
         BinaryOpAtom.__init__(self, "not", lambda a: not a)
 
-class SampleTextSpace(TextSpace):
+class Atomese:
 
     def __init__(self):
-        TextSpace.__init__(self)
-        self.register_token("\+", lambda token: AddAtom())
-        self.register_token("-", lambda token: SubAtom())
-        self.register_token("\*", lambda token: MulAtom())
-        self.register_token("\/", lambda token: DivAtom())
-        self.register_token("==", lambda token: EqualAtom())
-        self.register_token("<", lambda token: LessAtom())
-        self.register_token(">", lambda token: GreaterAtom())
-        self.register_token("or", lambda token: OrAtom())
-        self.register_token("and", lambda token: AndAtom())
-        self.register_token("not", lambda token: NotAtom())
-        self.register_token("\\d+(.\\d+)", lambda token: ValueAtom(float(token)))
-        self.register_token("\\d+", lambda token: ValueAtom(int(token)))
-        self.register_token("'[^']*'", lambda token: ValueAtom(str(token)))
-        self.register_token("True|False", lambda token: ValueAtom(token == 'True'))
+        self.symbols = {}
 
-def atomese(program):
-    kb = GroundingSpace()
-    text = SampleTextSpace()
-    text.add_string(program)
-    kb.add_from_space(text)
-    return kb
+    def _parser(self):
+        parser = TextSpace()
+        parser.register_token("\+", lambda token: AddAtom())
+        parser.register_token("-", lambda token: SubAtom())
+        parser.register_token("\*", lambda token: MulAtom())
+        parser.register_token("\/", lambda token: DivAtom())
+        parser.register_token("==", lambda token: EqualAtom())
+        parser.register_token("<", lambda token: LessAtom())
+        parser.register_token(">", lambda token: GreaterAtom())
+        parser.register_token("or", lambda token: OrAtom())
+        parser.register_token("and", lambda token: AndAtom())
+        parser.register_token("not", lambda token: NotAtom())
+        parser.register_token("\\d+(.\\d+)", lambda token: ValueAtom(float(token)))
+        parser.register_token("\\d+", lambda token: ValueAtom(int(token)))
+        parser.register_token("'[^']*'", lambda token: ValueAtom(str(token)))
+        parser.register_token("True|False", lambda token: ValueAtom(token == 'True'))
+        parser.register_token("match", lambda token: MatchAtom())
+        for name in self.symbols.keys():
+            parser.register_token(name, lambda _: self.symbols[name])
+        return parser
+
+    def parse(self, program):
+        kb = GroundingSpace()
+        text = self._parser()
+        text.add_string(program)
+        kb.add_from_space(text)
+        return kb
+
+    def add_symbol(self, name, symbol):
+        self.symbols[name] = symbol
