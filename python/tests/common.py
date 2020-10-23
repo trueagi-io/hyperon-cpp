@@ -122,7 +122,7 @@ class AndAtom(BinaryOpAtom):
     def __init__(self):
         BinaryOpAtom.__init__(self, "and", lambda a, b: a and b)
 
-class NotAtom(BinaryOpAtom):
+class NotAtom(UnaryOpAtom):
     def __init__(self):
         BinaryOpAtom.__init__(self, "not", lambda a: not a)
 
@@ -144,6 +144,21 @@ class CallAtom(GroundedAtom):
 
     def __repr__(self):
         return "call:" + self.method_name
+
+class CommaAtom(GroundedAtom):
+
+    def __init__(self):
+        GroundedAtom.__init__(self)
+
+    def execute(self, args, result):
+        for arg in args.get_content()[1:][::-1]:
+            result.add_atom(arg)
+
+    def __eq__(self, other):
+        return isinstance(other, CommaAtom)
+
+    def __repr__(self):
+        return ","
 
 class Atomese:
 
@@ -168,6 +183,7 @@ class Atomese:
         parser.register_token("True|False", lambda token: ValueAtom(token == 'True'))
         parser.register_token("match", lambda token: MatchAtom())
         parser.register_token("call:[^\\s)]+", lambda token: CallAtom(token[5:]))
+        parser.register_token(",", lambda token: CommaAtom())
         for regexp in self.tokens.keys():
             parser.register_token(regexp, self.tokens[regexp])
         return parser

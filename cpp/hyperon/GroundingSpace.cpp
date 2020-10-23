@@ -631,6 +631,7 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     content.pop_back();
     LOG_DEBUG << "next atom: " << atom->to_string() << std::endl;
     return interpret_expr_step(kb, atom, false, [this](AtomPtr result, Bindings const* bindings) -> void {
+                LOG_DEBUG << "push atom: " << result->to_string() << std::endl;
                 this->content.push_back(result);
             });
 }
