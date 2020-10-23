@@ -13,17 +13,13 @@ def interpret_and_print_results(target, kb):
 
 class InInventoryAtom(GroundedAtom):
 
-    def __init__(self):
+    def __init__(self, inventory):
         GroundedAtom.__init__(self)
+        self.inventory = inventory
 
     def execute(self, args, result):
-        # TODO: add inventory checking
         obj = args.get_content()[1]
-        if obj in [S('inventory'), S('hands'), S('crafting-table'), S('stick'),
-                  S('iron-ingot'), S('iron-pickaxe')]:
-            result.add_atom(ValueAtom(True))
-        else:
-            result.add_atom(ValueAtom(False))
+        return obj in self.inventory
 
     def __eq__(self, other):
         return isinstance(other, InInventoryAtom)
@@ -31,23 +27,69 @@ class InInventoryAtom(GroundedAtom):
     def __repr__(self):
         return "in-inventory"
 
+class CraftAtom(GroundedAtom):
+
+    def __init__(self, inventory):
+        GroundedAtom.__init__(self)
+        self.inventory = inventory
+
+    def execute(self, args, result):
+        obj = args.get_content()[1]
+        where = args.get_content()[2]
+        comp = args.get_content()[3:]
+        print(str(obj) + " crafted in " + str(where) + " from " + str(comp))
+        self.inventory.append(obj)
+
+    def __eq__(self, other):
+        return isinstance(other, CraftAtom)
+
+    def __repr__(self):
+        return "craft"
+
 class MinecraftTest(unittest.TestCase):
 
     def test_minecraft_planning(self):
         Logger.setLevel(Logger.DEBUG)
         atomese = Atomese()
+        inventory = [S('inventory'), S('hands')]
+        atomese.add_token("in-inventory", lambda _: InInventoryAtom(inventory))
+        atomese.add_token("Craft", lambda _: CraftAtom(inventory))
+
+        kb = atomese.parse('''
+            (= (if True $then $else) $then)
+            (= (if False $then $else) $else)
+
+            (= (wood) (spruce-wood))
+            (= (spruce-wood) (mine spruce-tree hand))
+
+            (= (four-planks) (craft four-planks inventory (wood)))
+            (= (pack $n planks) (if (> $n 0) (allof (four-planks) (pack (- $n 4) planks)) nop))
+
+            (= (crafting-table) (craft crafting-table inventory  (pack 4 planks)))
+
+            (= (stick) (craft stick inventory (pack 2 planks)))
+            (= (pack $n sticks) (if (> $n 0) (allof (stick) (pack (- $n 1) sticks)) nop))
+
+            (= (wooden-pickaxe) (craft wooden-pickaxe
+                           (crafting-table) (allof (pack 3 planks) (pack 2 sticks))))
+
+            (= (cobblestone) (mine cobble-ore (wooden-pickaxe)))
+            (= (pack $n cobblestones) (if (> $n 0) (allof (cobblestone) (pack (- $n 1) cobblestones)) nop))
+
+            (= (stone-pickaxe) (craft stone-pickaxe (crafting-table)
+                           (allof (pack 3 cobblestones) (pack 2 sticks))))
+        ''')
+
+        target = atomese.parse('(wooden-pickaxe)')
+
+        interpret_and_print_results(target, kb)
+
+    @unittest.skip("not ready yet")
+    def test_minecraft_planning_with_abstractions(self):
+        atomese = Atomese()
 
         atomese.add_token("in-inventory", lambda _: InInventoryAtom())
 
-            #(= (($kind plank) made-from ($kind wood)) True)
-            #(= (($kind plank) made-at inventory) True)
-
-            #(= (($kind wood) mined-using hands) True)
-            #(= (($kind wood) mined-using ($kind tree)) True)
-
-            #(= ((spruce tree) exists) True)
-            #(= ((oak tree) exists) True)
-            #(= ((birch tree) exists) True)
         kb = atomese.parse('''
             (= (can-be-mined diamond) True)
             (= (can-be-made diamond) False)
@@ -62,9 +104,11 @@ class MinecraftTest(unittest.TestCase):
 
             (= (can-be-made crafting-table) True)
             (= (can-be-mined crafting-table) False)
+            (= (crafting-table made-from (pack 4 plank)) True)
+            (= (crafting-table made-at inventory) True)
 
-            (= (stick made-from (if (($kind tree) exists) (, ($kind plank) ($kind plank)))) True)
-            (= (stick made-at inventory) True)
+            (= (can-be-made inventory) False)
+            (= (can-be-mined inventory) False)
 
 
             (= (if True $then $else) $then)
