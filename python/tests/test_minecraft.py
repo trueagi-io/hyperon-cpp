@@ -39,12 +39,32 @@ class CraftAtom(GroundedAtom):
         comp = args.get_content()[3:]
         print(str(obj) + " crafted in " + str(where) + " from " + str(comp))
         self.inventory.append(obj)
+        result.add_atom(obj)
 
     def __eq__(self, other):
         return isinstance(other, CraftAtom)
 
     def __repr__(self):
         return "craft"
+
+class MineAtom(GroundedAtom):
+
+    def __init__(self, inventory):
+        GroundedAtom.__init__(self)
+        self.inventory = inventory
+
+    def execute(self, args, result):
+        obj = args.get_content()[1]
+        tool = args.get_content()[2]
+        print(str(obj) + " mined by " + str(tool))
+        self.inventory.append(obj)
+        result.add_atom(obj)
+
+    def __eq__(self, other):
+        return isinstance(other, MineAtom)
+
+    def __repr__(self):
+        return "mine"
 
 class MinecraftTest(unittest.TestCase):
 
@@ -54,6 +74,7 @@ class MinecraftTest(unittest.TestCase):
         inventory = [S('inventory'), S('hands')]
         atomese.add_token("in-inventory", lambda _: InInventoryAtom(inventory))
         atomese.add_token("Craft", lambda _: CraftAtom(inventory))
+        atomese.add_token("mine", lambda _: MineAtom(inventory))
 
         kb = atomese.parse('''
             (= (if True $then $else) $then)
@@ -62,21 +83,21 @@ class MinecraftTest(unittest.TestCase):
             (= (wood) (spruce-wood))
             (= (spruce-wood) (mine spruce-tree hand))
 
-            (= (four-planks) (craft four-planks inventory (wood)))
+            (= (four-planks) (Craft four-planks inventory (wood)))
             (= (pack $n planks) (if (> $n 0) (allof (four-planks) (pack (- $n 4) planks)) nop))
 
-            (= (crafting-table) (craft crafting-table inventory  (pack 4 planks)))
+            (= (crafting-table) (Craft crafting-table inventory  (pack 4 planks)))
 
-            (= (stick) (craft stick inventory (pack 2 planks)))
+            (= (stick) (Craft stick inventory (pack 2 planks)))
             (= (pack $n sticks) (if (> $n 0) (allof (stick) (pack (- $n 1) sticks)) nop))
 
-            (= (wooden-pickaxe) (craft wooden-pickaxe
+            (= (wooden-pickaxe) (Craft wooden-pickaxe
                            (crafting-table) (allof (pack 3 planks) (pack 2 sticks))))
 
             (= (cobblestone) (mine cobble-ore (wooden-pickaxe)))
             (= (pack $n cobblestones) (if (> $n 0) (allof (cobblestone) (pack (- $n 1) cobblestones)) nop))
 
-            (= (stone-pickaxe) (craft stone-pickaxe (crafting-table)
+            (= (stone-pickaxe) (Craft stone-pickaxe (crafting-table)
                            (allof (pack 3 cobblestones) (pack 2 sticks))))
         ''')
 
@@ -88,7 +109,9 @@ class MinecraftTest(unittest.TestCase):
     def test_minecraft_planning_with_abstractions(self):
         atomese = Atomese()
 
-        atomese.add_token("in-inventory", lambda _: InInventoryAtom())
+        inventory = [S('inventory'), S('hands'), S('crafting-table'), S('stick'),
+-                  S('iron-ingot'), S('iron-pickaxe')]
+        atomese.add_token("in-inventory", lambda _: InInventoryAtom(inventory))
 
         kb = atomese.parse('''
             (= (can-be-mined diamond) True)
