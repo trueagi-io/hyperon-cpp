@@ -331,19 +331,12 @@ static ExecutionResult execute_grounded_expression(ExprAtomPtr expr) {
     // are put into current atomspace. Should we return new child atomspace
     // instead?
     auto children = expr->get_children();
-    // FIXME: temporary hack: if grounded atom has variables don't execute it
-    bool has_variables = std::any_of(children.cbegin(), children.cend(),
-            [](auto const& child) -> bool { return child->get_type() == Atom::VARIABLE; });
-    if (!has_variables) {
-        GroundingSpace args(children);
-        LOG_DEBUG << "args: \"" << args.to_string() << "\"" << std::endl;
-        GroundingSpace results;
-        func->execute(args, results);
-        LOG_DEBUG << "results: \"" << results.to_string() << "\"" << std::endl;
-        return { true, results.get_content() };
-    }
-    LOG_DEBUG << "skip execution because atom has unbound variables as arguments" << std::endl;
-    return { false };
+    GroundingSpace args(children);
+    LOG_DEBUG << "args: \"" << args.to_string() << "\"" << std::endl;
+    GroundingSpace results;
+    func->execute(args, results);
+    LOG_DEBUG << "results: \"" << results.to_string() << "\"" << std::endl;
+    return { true, results.get_content() };
 }
 
 static AtomPtr match_plain_nongrounded_expression(GroundingSpace const& kb, ExprAtomPtr expr, AtomPtr templ, GroundingSpace& target) {
@@ -563,7 +556,7 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
                             LOG_DEBUG << "apply bindings to full_expr" << std::endl;
                             applied = apply_bindings_to_atom(full_expr, *bindings);
                         }
-                        callback(E({ REDUCT, result, applied }), nullptr);
+                        callback(E({ REDUCT, result, applied }), bindings);
                     });
             if (result) {
                 LOG_DEBUG << "sub expression is not interpretable" << std::endl;
@@ -611,7 +604,12 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
         } else {
             LOG_DEBUG << "adding unification results" << std::endl; 
             for (auto const& result : results) {
-                callback(unification_result_to_expr(result, var), &result.b_bindings);
+                auto expr = result.b_bindings.find(var);
+                // TODO: the situation when (= ... $X) matched symbol not
+                // expression
+                if (expr != result.b_bindings.end()) {
+                    callback(unification_result_to_expr(result, var), &result.b_bindings);
+                }
             }
             return Atom::INVALID;
         }
@@ -633,6 +631,7 @@ AtomPtr GroundingSpace::interpret_step(SpaceAPI const& _kb) {
     content.pop_back();
     LOG_DEBUG << "next atom: " << atom->to_string() << std::endl;
     return interpret_expr_step(kb, atom, false, [this](AtomPtr result, Bindings const* bindings) -> void {
+                LOG_DEBUG << "push atom: " << result->to_string() << std::endl;
                 this->content.push_back(result);
             });
 }
