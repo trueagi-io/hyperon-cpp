@@ -52,6 +52,9 @@ public:
     using Atom::Atom;
 
     bool operator==(Atom const& other) const override {
+        // workaround for a pybind11 issue https://github.com/pybind/pybind11/issues/2033
+        // see https://stackoverflow.com/a/59331026/14016260 for explanation
+        py::object dummy = py::cast(&other);
         PYBIND11_OVERLOAD_PURE_NAME(bool, Atom, "__eq__", operator==, other);
     }
 
@@ -67,11 +70,15 @@ public:
     void execute(GroundingSpace const& args, GroundingSpace& result) const override {
         // workaround for a pybind11 issue https://github.com/pybind/pybind11/issues/2033
         // see https://stackoverflow.com/a/59331026/14016260 for explanation
-        py::object dummy = py::cast(&result);
+        py::object dummy0 = py::cast(&args);
+        py::object dummy1 = py::cast(&result);
         PYBIND11_OVERLOAD(void, GroundedAtom, execute, args, result);
     }
 
     bool operator==(Atom const& other) const override {
+        // workaround for a pybind11 issue https://github.com/pybind/pybind11/issues/2033
+        // see https://stackoverflow.com/a/59331026/14016260 for explanation
+        py::object dummy = py::cast(&other);
         PYBIND11_OVERLOAD_PURE_NAME(bool, GroundedAtom, "__eq__", operator==, other);
     }
 
