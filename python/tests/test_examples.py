@@ -4,15 +4,16 @@ import re
 from hyperon import *
 from common import interpret_until_result, Atomese
 
-def interpret_and_print_results(target, kb):
+def interpret_and_print_results(target, kb, add_results_to_kb=False):
     while True:
         next = interpret_until_result(target, kb)
         if next == S('eos'):
             break
         print(next)
-        kb.add_atom(next)
+        if add_results_to_kb:
+            kb.add_atom(next)
 
-class MatchingTest(unittest.TestCase):
+class ExamplesTest(unittest.TestCase):
 
     def test_show_all_color_names(self):
         atomese = Atomese()
@@ -84,6 +85,31 @@ class MatchingTest(unittest.TestCase):
             (if ($x frog) (= ($x green) True) nop)
             (if (and ($x croaks) ($x eats_flies)) (= ($x frog) True) nop)
         ''')
+
+        interpret_and_print_results(target, kb, add_results_to_kb=True)
+
+    def test_air_humidity_regulator(self):
+        Logger.setLevel(Logger.DEBUG)
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+            (= (if True $then) $then)
+            (= (make $x) (if ($y makes $x) (start $y)))
+            (= (make $x) (if (and ((making $y) prevents (making $x)) ($z
+                           makes $y)) (stop $z)))
+
+            (= (too dry) (make (air wet)))
+            (= (too wet) (make (air dry)))
+            (= ((making (air dry)) prevents (making (air wet))) True)
+            (= ((making (air wet)) prevents (making (air dry))) True)
+
+            (= (humidifier makes (air wet)) True)
+            (= (kettle makes (air wet)) True)
+            (= (ventilation makes (air dry)) True)
+        ''')
+
+        target = atomese.parse('(too dry)')
+        target = atomese.parse('(too wet)')
 
         interpret_and_print_results(target, kb)
 
