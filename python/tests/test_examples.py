@@ -93,25 +93,27 @@ class ExamplesTest(unittest.TestCase):
         atomese = Atomese()
 
         kb = atomese.parse('''
-            (= (if True $then) $then)
-            (= (make $x) (if ($y makes $x) (start $y)))
-            (= (make $x) (if (and ((making $y) prevents (making $x)) ($z
-                           makes $y)) (stop $z)))
+           (= (if True $then) $then)
+           (= (make $x) (if (makes $y $x) (start $y)))
+           (= (make $x) (if (and (prevents (making $y) (making $x))
+                                   (makes $z $y)) (stop $z)))
 
-            (= (too dry) (make (air wet)))
-            (= (too wet) (make (air dry)))
-            (= ((making (air dry)) prevents (making (air wet))) True)
-            (= ((making (air wet)) prevents (making (air dry))) True)
+           (= (is (air dry)) (make (air wet)))
+           (= (is (air wet)) (make (air dry)))
+           (= (prevents (making (air dry)) (making (air wet))) True)
+           (= (prevents (making (air wet)) (making (air dry))) True)
 
-            (= (humidifier makes (air wet)) True)
-            (= (kettle makes (air wet)) True)
-            (= (ventilation makes (air dry)) True)
+           (= (makes humidifier (air wet)) True)
+           (= (makes kettle (air wet)) True)
+           (= (makes ventilation (air dry)) True)
         ''')
 
-        target = atomese.parse('(too dry)')
-        target = atomese.parse('(too wet)')
-
+        target = atomese.parse('(is (air dry))')
         interpret_and_print_results(target, kb)
+
+        target = atomese.parse('(is (air wet))')
+        interpret_and_print_results(target, kb)
+
 
 class SomeObject():
 
