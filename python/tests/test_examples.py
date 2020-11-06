@@ -88,8 +88,23 @@ class ExamplesTest(unittest.TestCase):
 
         interpret_and_print_results(target, kb, add_results_to_kb=True)
 
-    def test_air_humidity_regulator(self):
+    def test_frog_unification(self):
         Logger.setLevel(Logger.DEBUG)
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+           (= (if True $then) $then)
+           (= (frog $x) (and (croaks $x) (eat_flies $x)))
+           (= (croaks Fritz) True)
+           (= (eat_flies Fritz) True)
+           (= (green $x) (frog $x))
+        ''')
+
+        target = atomese.parse('(if (green $x) $x)')
+
+        interpret_and_print_results(target, kb, add_results_to_kb=True)
+
+    def test_air_humidity_regulator(self):
         atomese = Atomese()
 
         kb = atomese.parse('''
