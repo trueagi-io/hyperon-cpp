@@ -445,22 +445,28 @@ static bool is_plain_expression(ExprAtomPtr expr) {
     return true;
 }
 
-class IfEqAtom : public GroundedAtom {
+class IfMatchAtom : public GroundedAtom {
 public:
-    IfEqAtom() {}
-    virtual ~IfEqAtom() {}
+    IfMatchAtom() {}
+    virtual ~IfMatchAtom() {}
 
     void execute(GroundingSpace const& args, GroundingSpace& result) const override {
-        if (*args.get_content()[1] == *args.get_content()[2]) {
-            result.add_atom(args.get_content()[3]);
+        AtomPtr a = args.get_content()[1];
+        AtomPtr b = args.get_content()[2];
+        MatchBindings match;
+        if (match_atoms(a, b, match)) {
+            AtomPtr c = args.get_content()[3];
+            c = apply_bindings_to_atom(c, match.a_bindings);
+            c = apply_bindings_to_atom(c, match.b_bindings);
+            result.add_atom(c);
         }
     }
 
     bool operator==(Atom const& other) const override { return this == &other; }
-    std::string to_string() const override { return "ifeq"; }
+    std::string to_string() const override { return "ifmatch"; }
 };
 
-const GroundedAtomPtr IFEQ = std::make_shared<IfEqAtom>();
+const GroundedAtomPtr IFMATCH = std::make_shared<IfMatchAtom>();
 
 const SymbolAtomPtr REDUCT = S("reduct");
 // FIXME: make AT symbol more unique
@@ -491,7 +497,7 @@ static AtomPtr reduct_first_arg(ExprAtomPtr expr) {
 static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
     std::vector<AtomPtr> children = expr->get_children();
     auto it = children.begin();
-    bool ifeq = *it == IFEQ;
+    bool ifeq = *it == IFMATCH;
     while (it != children.end()) {
         if (*it == AT) {
             *it = value;
@@ -520,7 +526,7 @@ static AtomPtr generate_if_eq_recursively(Unifications::const_reverse_iterator i
     if (i == end) {
         return expr;
     }
-    return E({IFEQ, i->a, i->b, generate_if_eq_recursively(i + 1, end, expr)});
+    return E({IFMATCH, i->a, i->b, generate_if_eq_recursively(i + 1, end, expr)});
 }
 
 static AtomPtr unification_result_to_expr(UnificationResult const& unification_result,
