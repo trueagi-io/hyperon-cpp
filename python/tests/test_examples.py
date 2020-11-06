@@ -129,6 +129,21 @@ class ExamplesTest(unittest.TestCase):
         target = atomese.parse('(is (air wet))')
         interpret_and_print_results(target, kb)
 
+    def test_infer_function_application_type(self):
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+           (= (if True $then) $then)
+
+           (= (: ($f $x) $r) (and (: $f (=> $a $r)) (: $x $a)))
+
+           (= (: reverse (=> String String)) True)
+           (= (: "Hello" String) True)
+        ''')
+
+        target = atomese.parse('(if (: (reverse "Hello") $t) $t)')
+
+        interpret_and_print_results(target, kb, add_results_to_kb=True)
 
 class SomeObject():
 
