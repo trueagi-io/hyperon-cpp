@@ -184,6 +184,7 @@ class Atomese:
         parser.register_token("match", lambda token: MatchAtom())
         parser.register_token("call:[^\\s)]+", lambda token: CallAtom(token[5:]))
         parser.register_token(",", lambda token: CommaAtom())
+        parser.register_token("let", lambda token: IFMATCH)
         for regexp in self.tokens.keys():
             parser.register_token(regexp, self.tokens[regexp])
         return parser
