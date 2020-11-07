@@ -89,7 +89,6 @@ class ExamplesTest(unittest.TestCase):
         interpret_and_print_results(target, kb, add_results_to_kb=True)
 
     def test_frog_unification(self):
-        Logger.setLevel(Logger.DEBUG)
         atomese = Atomese()
 
         kb = atomese.parse('''
@@ -102,7 +101,7 @@ class ExamplesTest(unittest.TestCase):
 
         target = atomese.parse('(if (green $x) $x)')
 
-        interpret_and_print_results(target, kb, add_results_to_kb=True)
+        interpret_and_print_results(target, kb)
 
     def test_air_humidity_regulator(self):
         atomese = Atomese()
@@ -129,7 +128,9 @@ class ExamplesTest(unittest.TestCase):
         target = atomese.parse('(is (air wet))')
         interpret_and_print_results(target, kb)
 
+    @unittest.skip("not implemented")
     def test_infer_function_application_type(self):
+        Logger.setLevel(Logger.DEBUG)
         atomese = Atomese()
 
         kb = atomese.parse('''
@@ -143,7 +144,7 @@ class ExamplesTest(unittest.TestCase):
 
         target = atomese.parse('(if (: (reverse "Hello") $t) $t)')
 
-        interpret_and_print_results(target, kb, add_results_to_kb=True)
+        interpret_and_print_results(target, kb)
 
 class SomeObject():
 
