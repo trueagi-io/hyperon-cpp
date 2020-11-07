@@ -188,7 +188,10 @@ void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, Gro
 
 // Unify
 
-bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result) {
+// FIXME: depth - is a hack for implementing unification with (= a b)
+// correctly; it should not be implemented here but on the caller level to keep
+// unify_atoms code clean
+bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result, int depth=0) {
     // TODO: it is not clear how should we handle the case when a and b are
     // both variables. We can check variable name equality and skip binding. We
     // can add a as binding for b and vice versa.
@@ -216,10 +219,14 @@ bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result) {
             ExprAtomPtr expr_a = std::static_pointer_cast<ExprAtom>(a);
             ExprAtomPtr expr_b = std::static_pointer_cast<ExprAtom>(b);
             if (expr_a->get_children().size() != expr_b->get_children().size()) {
-                return false;
+                if (depth == 1) {
+                    return false;
+                }
+                result.unifications.emplace_back(a, b);
+                return true;
             }
             for (int i = 0; i < expr_a->get_children().size(); ++i) {
-                if (!unify_atoms(expr_a->get_children()[i], expr_b->get_children()[i], result)) {
+                if (!unify_atoms(expr_a->get_children()[i], expr_b->get_children()[i], result, depth+1)) {
                     return false;
                 }
             }
