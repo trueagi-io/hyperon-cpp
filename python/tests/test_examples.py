@@ -128,6 +128,26 @@ class ExamplesTest(unittest.TestCase):
         target = atomese.parse('(is (air wet))')
         interpret_and_print_results(target, kb)
 
+    def test_subset_sum_problem(self):
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+           (= (if True $then) $then)
+
+           (= (bin) 0)
+           (= (bin) 1)
+           (= (gen 0) nil)
+           (= (gen $n) (if (> $n 0) (:: (bin) (gen (- $n 1)))))
+
+           (= (subsum nil nil) 0)
+           (= (subsum (:: $x $xs) (:: $b $bs)) (+ (* $x $b) (subsum $xs $bs)))
+        ''')
+
+        target = atomese.parse('''(let $t (gen 3)
+            (if (== (subsum (:: 3 (:: 5 (:: 7 nil))) $t) 8) $t))''')
+
+        interpret_and_print_results(target, kb)
+
     @unittest.skip("not implemented")
     def test_infer_function_application_type(self):
         Logger.setLevel(Logger.DEBUG)
