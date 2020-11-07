@@ -341,7 +341,15 @@ static ExecutionResult execute_grounded_expression(ExprAtomPtr expr) {
     GroundingSpace args(children);
     LOG_DEBUG << "args: \"" << args.to_string() << "\"" << std::endl;
     GroundingSpace results;
-    func->execute(args, results);
+    try {
+        func->execute(args, results);
+    } catch (...) {
+        // FIXME: we should print the error here, but for doing this we need to
+        // add new type for error; this is the case for
+        // IllegalArgumentExpression analogue
+        LOG_DEBUG << "error while executing expression" << std::endl;
+        return { true, std::vector<AtomPtr>() };
+    }
     LOG_DEBUG << "results: \"" << results.to_string() << "\"" << std::endl;
     return { true, results.get_content() };
 }
