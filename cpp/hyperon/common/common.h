@@ -4,5 +4,6 @@
 #include "GroundedArithmetic.h"
 #include "GroundedLogic.h"
 #include "Interpret.h"
+#include "Atomese.h"
 
 #endif /* HYPERON_COMMON_H */
