@@ -56,27 +56,29 @@ struct MatchBindings {
     Bindings b_bindings;
 };
 
-// FIXME: if variable matched twice it should be checked the second match is
-// equal to the first one.
+bool add_binding(Bindings& bindings, AtomPtr _var, AtomPtr value) {
+    VariableAtomPtr var = std::static_pointer_cast<VariableAtom>(_var);
+    auto cur = bindings.find(var);
+    if (cur != bindings.end()) {
+        return *(cur->second) == *value;
+    } 
+    bindings[var] = value;
+    return true;
+}
+
 static bool match_atoms(AtomPtr a, AtomPtr b, MatchBindings& match) {
     // TODO: it is not clear how should we handle the case when a and b are
     // both variables. We can check variable name equality and skip binding. We
     // can add a as binding for b and vice versa.
     if (b->get_type() == Atom::VARIABLE) {
-        VariableAtomPtr var = std::static_pointer_cast<VariableAtom>(b);
-        match.b_bindings[var] = a;
-        return true;
+        return add_binding(match.b_bindings, b, a);
     }
     switch (a->get_type()) {
         case Atom::SYMBOL:
         case Atom::GROUNDED:
             return *a == *b;
         case Atom::VARIABLE:
-            {
-                VariableAtomPtr var = std::static_pointer_cast<VariableAtom>(a);
-                match.a_bindings[var] = b;
-                return true;
-            }
+            return add_binding(match.a_bindings, a, b);
         case Atom::EXPR:
             {
                 if (b->get_type() != Atom::EXPR) {
@@ -196,9 +198,7 @@ bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result, int depth=0) {
     // both variables. We can check variable name equality and skip binding. We
     // can add a as binding for b and vice versa.
     if (b->get_type() == Atom::VARIABLE) {
-        VariableAtomPtr var_b = std::static_pointer_cast<VariableAtom>(b);
-        result.b_bindings[var_b] = a;
-        return true;
+        return add_binding(result.b_bindings, b, a);
     }
     switch (a->get_type()) {
     case Atom::SYMBOL:
@@ -209,11 +209,7 @@ bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result, int depth=0) {
         result.unifications.emplace_back(a, b);
         return true;
     case Atom::VARIABLE:
-        {
-            VariableAtomPtr var_a = std::static_pointer_cast<VariableAtom>(a);
-            result.a_bindings[var_a] = b;
-            return true;
-        }
+        return add_binding(result.a_bindings, a, b);
     case Atom::EXPR:
         if (b->get_type() == Atom::EXPR) {
             ExprAtomPtr expr_a = std::static_pointer_cast<ExprAtom>(a);
