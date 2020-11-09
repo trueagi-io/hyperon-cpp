@@ -158,7 +158,6 @@ class ExamplesTest(unittest.TestCase):
         output = interpret_and_print_results(target, kb)
         self.assertEquals(output, '(:: 1 (:: 1 (:: 0 nil)))\n')
 
-    @unittest.skip("not implemented")
     def test_infer_function_application_type(self):
         Logger.setLevel(Logger.DEBUG)
         atomese = Atomese()
@@ -175,7 +174,7 @@ class ExamplesTest(unittest.TestCase):
         target = atomese.parse('(if (: (apply reverse "Hello") $t) $t)')
 
         output = interpret_and_print_results(target, kb)
-        self.assertEquals(output, 'String')
+        self.assertEquals(output, 'String\n')
 
 class SomeObject():
 
