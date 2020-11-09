@@ -184,10 +184,21 @@ class ExamplesTest(unittest.TestCase):
            (= (plus (S $k) $y) (S (plus $k $y)))
         ''')
 
-        target = atomese.parse('(eq (plus Z $n) $n)')
-
+        target = atomese.parse('(eq (+ 2 2) 4)')
         output = interpret_and_print_results(target, kb)
         self.assertEqual(output, 'True\n')
+
+        target = atomese.parse('(eq (+ 2 3) 4)')
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, '(eq 5 4)\n')
+
+        target = atomese.parse('(eq (plus Z $n) $n)')
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, 'True\n')
+
+        target = atomese.parse('(eq (plus (S Z) $n) $n)')
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, '(eq (S $n) $n)\n')
 
 class SomeObject():
 
