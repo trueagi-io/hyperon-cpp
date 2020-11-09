@@ -159,7 +159,6 @@ class ExamplesTest(unittest.TestCase):
         self.assertEquals(output, '(:: 1 (:: 1 (:: 0 nil)))\n')
 
     def test_infer_function_application_type(self):
-        Logger.setLevel(Logger.DEBUG)
         atomese = Atomese()
 
         kb = atomese.parse('''
@@ -175,6 +174,20 @@ class ExamplesTest(unittest.TestCase):
 
         output = interpret_and_print_results(target, kb)
         self.assertEquals(output, 'String\n')
+
+    def test_plus_reduces_Z(self):
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+           (= (eq $x $x) True)
+           (= (plus Z $y) $y)
+           (= (plus (S $k) $y) (S (plus $k $y)))
+        ''')
+
+        target = atomese.parse('(eq (plus Z $n) $n)')
+
+        output = interpret_and_print_results(target, kb)
+        self.assertEquals(output, 'True\n')
 
 class SomeObject():
 

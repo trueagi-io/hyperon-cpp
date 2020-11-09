@@ -198,7 +198,16 @@ bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result, int depth=0) {
     // both variables. We can check variable name equality and skip binding. We
     // can add a as binding for b and vice versa.
     if (b->get_type() == Atom::VARIABLE) {
-        return add_binding(result.b_bindings, b, a);
+        // FIXME: hardcoding V("X") below is a hack to make work matching for
+        // (= (plus Z $y) $y) and (= (plus Z $n) $X), otherwise $y cannot be
+        // bound to $n and $X at same time, but bounding it to $X doesn't make
+        // sense anyway
+        if (a->get_type() == Atom::VARIABLE && *b != *V("X")) {
+            return add_binding(result.a_bindings, a, b)
+                && add_binding(result.b_bindings, b, a);
+        } else {
+            return add_binding(result.b_bindings, b, a);
+        }
     }
     switch (a->get_type()) {
     case Atom::SYMBOL:
