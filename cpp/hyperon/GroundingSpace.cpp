@@ -512,7 +512,7 @@ static AtomPtr reduct_first_arg(ExprAtomPtr expr) {
 static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
     std::vector<AtomPtr> children = expr->get_children();
     auto it = children.begin();
-    bool ifeq = *it == IFMATCH;
+    bool ifmatch = *it == IFMATCH;
     while (it != children.end()) {
         if (*it == AT) {
             *it = value;
@@ -520,14 +520,11 @@ static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
         }
         it++;
     }
-    if (ifeq && it == children.begin() + 2) {
-        return E({REDUCT, E(children)});
-    }
     if (it == expr->get_children().end()) {
         throw std::runtime_error("Could not find placeholder to replace by value");
     }
     it++;
-    if (find_next_expr(it, children.end())) {
+    if (find_next_expr(it, children.end()) && (!ifmatch || it <= (children.begin() + 2))) {
         AtomPtr arg = *it;
         *it = AT;
         return E({REDUCT, arg, E(children)});
