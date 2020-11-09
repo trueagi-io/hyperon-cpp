@@ -92,7 +92,7 @@ class ExamplesTest(unittest.TestCase):
         ''')
 
         output = interpret_and_print_results(target, kb, add_results_to_kb=True)
-        self.assertEquals(output, '(= (Fritz frog) True)\n(= (Fritz green) True)\n')
+        self.assertEqual(output, '(= (Fritz frog) True)\n(= (Fritz green) True)\n')
 
     def test_frog_unification(self):
         atomese = Atomese()
@@ -108,7 +108,7 @@ class ExamplesTest(unittest.TestCase):
         target = atomese.parse('(if (green $x) $x)')
 
         output = interpret_and_print_results(target, kb)
-        self.assertEquals(output, 'Fritz\n')
+        self.assertEqual(output, 'Fritz\n')
 
     def test_air_humidity_regulator(self):
         atomese = Atomese()
@@ -131,11 +131,11 @@ class ExamplesTest(unittest.TestCase):
 
         target = atomese.parse('(is (air dry))')
         output = interpret_and_print_results(target, kb)
-        self.assertEquals(output, '(stop ventilation)\n(start kettle)\n(start humidifier)\n')
+        self.assertEqual(output, '(stop ventilation)\n(start kettle)\n(start humidifier)\n')
 
         target = atomese.parse('(is (air wet))')
         output = interpret_and_print_results(target, kb)
-        self.assertEquals(output, '(stop kettle)\n(stop humidifier)\n(start ventilation)\n')
+        self.assertEqual(output, '(stop kettle)\n(stop humidifier)\n(start ventilation)\n')
 
     def test_subset_sum_problem(self):
         atomese = Atomese()
@@ -156,7 +156,7 @@ class ExamplesTest(unittest.TestCase):
             (if (== (subsum (:: 3 (:: 5 (:: 7 nil))) $t) 8) $t))''')
 
         output = interpret_and_print_results(target, kb)
-        self.assertEquals(output, '(:: 1 (:: 1 (:: 0 nil)))\n')
+        self.assertEqual(output, '(:: 1 (:: 1 (:: 0 nil)))\n')
 
     def test_infer_function_application_type(self):
         atomese = Atomese()
@@ -173,7 +173,7 @@ class ExamplesTest(unittest.TestCase):
         target = atomese.parse('(if (: (apply reverse "Hello") $t) $t)')
 
         output = interpret_and_print_results(target, kb)
-        self.assertEquals(output, 'String\n')
+        self.assertEqual(output, 'String\n')
 
     def test_plus_reduces_Z(self):
         atomese = Atomese()
@@ -187,7 +187,7 @@ class ExamplesTest(unittest.TestCase):
         target = atomese.parse('(eq (plus Z $n) $n)')
 
         output = interpret_and_print_results(target, kb)
-        self.assertEquals(output, 'True\n')
+        self.assertEqual(output, 'True\n')
 
 class SomeObject():
 
