@@ -123,4 +123,16 @@ public:
             TS_FAIL("Could not get result in 100 steps");
         }
     }
+
+    void test_match_variables_in_unified_expressions() {
+        Atomese atomese;
+        GroundingSpace kb, target;
+        atomese.parse("(= (len nil) 0)", kb);
+        atomese.parse("(= (len (:: $x $xs)) (+ 1 (len $xs)))", kb);
+        atomese.parse("(len (:: 1 (:: 2 (:: 3 nil))))", target);
+
+        AtomPtr result = interpret_until_result(target, kb);
+
+        TS_ASSERT(*Int(3) == *result);
+    }
 };
