@@ -64,28 +64,7 @@ public:
         TS_ASSERT(expected == result);
     }
 
-    /*
-        lamp = dev:kitchen-lamp
-        lamp = dev:bedroom-lamp
-        call:turn_on lamp
-        
-        lamp dev:kitchen-lamp = True
-        lamp dev:bedroom-lamp = True
-        turn_lamp_on = if (lamp $x) (call:turn_on $x) nop
-        
-        turn_lamps_on = (match (spaces kb) (isa $x lamp) (call:turn_on $x))
-
-        lamp dev:kitchen-lamp
-        lamp dev:bedroom-lamp
-        turn_lamp_on (lamp $x) = call:turn_on $x
-        turn_lamp_on $y
-        --> turn_lamp_on $y = $z --> $y:=lamp $x, $z:=call:turn_on $x -->
-        --> $x:=dev:kitchen-lamp,dev:bedroom-lamp --> call:turn_on dev:kitchen-lamp,
-        --> call:turn_on dev:bedroom-lamp
-    */
-
     void test_interpret_plain_expr() {
-        Logger::setLevel(Logger::DEBUG);
         GroundingSpace kb;
         add_factorial_definition(kb);
         GroundingSpace target;
@@ -121,5 +100,39 @@ public:
         AtomPtr result = interpret_until_result(target, kb);
 
         TS_ASSERT(*S("True") == *result);
+    }
+
+    void test_not_reduct_ifmatch_arguments_before_matching() {
+        Logger::setLevel(Logger::DEBUG);
+        Atomese atomese;
+        GroundingSpace kb, target;
+        atomese.parse("(= (inc Z) (S Z))", kb);
+        atomese.parse("(= (inc (S $x)) (S (inc $x)))", kb);
+        atomese.parse("(inc Z)", target);
+
+        AtomPtr result;
+        int steps = 0;
+        do {
+            result = target.interpret_step(kb);
+            ++steps;
+        } while (result == Atom::INVALID && steps < 100);
+
+        if (result != Atom::INVALID) {
+            TS_ASSERT(*E({ S("S"), S("Z") }) == *result);
+        } else {
+            TS_FAIL("Could not get result in 100 steps");
+        }
+    }
+
+    void test_match_variables_in_unified_expressions() {
+        Atomese atomese;
+        GroundingSpace kb, target;
+        atomese.parse("(= (len nil) 0)", kb);
+        atomese.parse("(= (len (:: $x $xs)) (+ 1 (len $xs)))", kb);
+        atomese.parse("(len (:: 1 (:: 2 (:: 3 nil))))", target);
+
+        AtomPtr result = interpret_until_result(target, kb);
+
+        TS_ASSERT(*Int(3) == *result);
     }
 };

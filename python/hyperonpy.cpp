@@ -187,5 +187,7 @@ PYBIND11_MODULE(hyperonpy, m) {
         .value("DEBUG", Logger::Level::DEBUG)
         .value("TRACE", Logger::Level::TRACE)
         .export_values();
+
+    m.attr("IFMATCH") = IFMATCH;
 }
 

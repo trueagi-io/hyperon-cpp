@@ -213,4 +213,9 @@ private:
     std::vector<AtomPtr> content;
 };
 
+// TODO: think how to export it properly: either we should export API to
+// implement it and move it into common library or we should consider it to be
+// a part of the GroundingSpace API
+extern const GroundedAtomPtr IFMATCH;
+
 #endif // GROUNDING_SPACE_H

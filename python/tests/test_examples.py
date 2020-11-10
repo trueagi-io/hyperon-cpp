@@ -5,13 +5,16 @@ from hyperon import *
 from common import interpret_until_result, Atomese
 
 def interpret_and_print_results(target, kb, add_results_to_kb=False):
+    output = ""
     while True:
         next = interpret_until_result(target, kb)
         if next == S('eos'):
             break
         print(next)
+        output = output + str(next) + "\n"
         if add_results_to_kb:
             kb.add_atom(next)
+    return output
 
 class ExamplesTest(unittest.TestCase):
 
@@ -27,7 +30,8 @@ class ExamplesTest(unittest.TestCase):
         atomese.add_atom("kb", ValueAtom(kb))
         target = atomese.parse('(match kb (isa $color color) $color)')
 
-        interpret_and_print_results(target, kb)
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, 'blue\ngreen\nred\n')
 
     def test_create_semantic_triple(self):
         atomese = Atomese()
@@ -43,13 +47,13 @@ class ExamplesTest(unittest.TestCase):
                 (q match kb (from $verb $var1) (make_from $var0 $var1)))
         ''')
 
-        interpret_and_print_results(target, kb)
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, '(make_from pottery clay)\n')
 
     def test_grounded_arithmetics(self):
         atomese = Atomese()
 
         kb = atomese.parse('''
-            (= (foo $a $b) (* (+ $a $b) (+ $a $b)))
             (= (foo $a $b) (* (+ $a $b) (+ $a $b)))
         ''')
 
@@ -58,7 +62,8 @@ class ExamplesTest(unittest.TestCase):
             (+ 'Hello ' 'world')
         ''')
 
-        interpret_and_print_results(target, kb)
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, "'Hello world'\n49\n")
 
     def test_grounded_functions(self):
         atomese = Atomese()
@@ -86,32 +91,114 @@ class ExamplesTest(unittest.TestCase):
             (if (and ($x croaks) ($x eats_flies)) (= ($x frog) True) nop)
         ''')
 
-        interpret_and_print_results(target, kb, add_results_to_kb=True)
+        output = interpret_and_print_results(target, kb, add_results_to_kb=True)
+        self.assertEqual(output, '(= (Fritz frog) True)\n(= (Fritz green) True)\n')
 
-    def test_air_humidity_regulator(self):
-        Logger.setLevel(Logger.DEBUG)
+    def test_frog_unification(self):
         atomese = Atomese()
 
         kb = atomese.parse('''
-            (= (if True $then) $then)
-            (= (make $x) (if ($y makes $x) (start $y)))
-            (= (make $x) (if (and ((making $y) prevents (making $x)) ($z
-                           makes $y)) (stop $z)))
-
-            (= (too dry) (make (air wet)))
-            (= (too wet) (make (air dry)))
-            (= ((making (air dry)) prevents (making (air wet))) True)
-            (= ((making (air wet)) prevents (making (air dry))) True)
-
-            (= (humidifier makes (air wet)) True)
-            (= (kettle makes (air wet)) True)
-            (= (ventilation makes (air dry)) True)
+           (= (if True $then) $then)
+           (= (frog $x) (and (croaks $x) (eat_flies $x)))
+           (= (croaks Fritz) True)
+           (= (eat_flies Fritz) True)
+           (= (green $x) (frog $x))
         ''')
 
-        target = atomese.parse('(too dry)')
-        target = atomese.parse('(too wet)')
+        target = atomese.parse('(if (green $x) $x)')
 
-        interpret_and_print_results(target, kb)
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, 'Fritz\n')
+
+    def test_air_humidity_regulator(self):
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+           (= (if True $then) $then)
+           (= (make $x) (if (makes $y $x) (start $y)))
+           (= (make $x) (if (and (prevents (making $y) (making $x))
+                                   (makes $z $y)) (stop $z)))
+
+           (= (is (air dry)) (make (air wet)))
+           (= (is (air wet)) (make (air dry)))
+           (= (prevents (making (air dry)) (making (air wet))) True)
+           (= (prevents (making (air wet)) (making (air dry))) True)
+
+           (= (makes humidifier (air wet)) True)
+           (= (makes kettle (air wet)) True)
+           (= (makes ventilation (air dry)) True)
+        ''')
+
+        target = atomese.parse('(is (air dry))')
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, '(stop ventilation)\n(start kettle)\n(start humidifier)\n')
+
+        target = atomese.parse('(is (air wet))')
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, '(stop kettle)\n(stop humidifier)\n(start ventilation)\n')
+
+    def test_subset_sum_problem(self):
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+           (= (if True $then) $then)
+
+           (= (bin) 0)
+           (= (bin) 1)
+           (= (gen 0) nil)
+           (= (gen $n) (if (> $n 0) (:: (bin) (gen (- $n 1)))))
+
+           (= (subsum nil nil) 0)
+           (= (subsum (:: $x $xs) (:: $b $bs)) (+ (* $x $b) (subsum $xs $bs)))
+        ''')
+
+        target = atomese.parse('''(let $t (gen 3)
+            (if (== (subsum (:: 3 (:: 5 (:: 7 nil))) $t) 8) $t))''')
+
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, '(:: 1 (:: 1 (:: 0 nil)))\n')
+
+    def test_infer_function_application_type(self):
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+           (= (if True $then) $then)
+
+           (= (: (apply $f $x) $r) (and (: $f (=> $a $r)) (: $x $a)))
+
+           (= (: reverse (=> String String)) True)
+           (= (: "Hello" String) True)
+        ''')
+
+        target = atomese.parse('(if (: (apply reverse "Hello") $t) $t)')
+
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, 'String\n')
+
+    def test_plus_reduces_Z(self):
+        atomese = Atomese()
+
+        kb = atomese.parse('''
+           (= (eq $x $x) True)
+           (= (plus Z $y) $y)
+           (= (plus (S $k) $y) (S (plus $k $y)))
+        ''')
+
+        target = atomese.parse('(eq (+ 2 2) 4)')
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, 'True\n')
+
+        target = atomese.parse('(eq (+ 2 3) 4)')
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, '(eq 5 4)\n')
+
+        target = atomese.parse('(eq (plus Z $n) $n)')
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, 'True\n')
+
+        target = atomese.parse('(eq (plus (S Z) $n) $n)')
+        output = interpret_and_print_results(target, kb)
+        self.assertEqual(output, '(eq (S $n) $n)\n')
 
 class SomeObject():
 

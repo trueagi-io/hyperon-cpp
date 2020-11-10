@@ -56,27 +56,29 @@ struct MatchBindings {
     Bindings b_bindings;
 };
 
-// FIXME: if variable matched twice it should be checked the second match is
-// equal to the first one.
+bool add_binding(Bindings& bindings, AtomPtr _var, AtomPtr value) {
+    VariableAtomPtr var = std::static_pointer_cast<VariableAtom>(_var);
+    auto cur = bindings.find(var);
+    if (cur != bindings.end()) {
+        return *(cur->second) == *value;
+    } 
+    bindings[var] = value;
+    return true;
+}
+
 static bool match_atoms(AtomPtr a, AtomPtr b, MatchBindings& match) {
     // TODO: it is not clear how should we handle the case when a and b are
     // both variables. We can check variable name equality and skip binding. We
     // can add a as binding for b and vice versa.
     if (b->get_type() == Atom::VARIABLE) {
-        VariableAtomPtr var = std::static_pointer_cast<VariableAtom>(b);
-        match.b_bindings[var] = a;
-        return true;
+        return add_binding(match.b_bindings, b, a);
     }
     switch (a->get_type()) {
         case Atom::SYMBOL:
         case Atom::GROUNDED:
             return *a == *b;
         case Atom::VARIABLE:
-            {
-                VariableAtomPtr var = std::static_pointer_cast<VariableAtom>(a);
-                match.a_bindings[var] = b;
-                return true;
-            }
+            return add_binding(match.a_bindings, a, b);
         case Atom::EXPR:
             {
                 if (b->get_type() != Atom::EXPR) {
@@ -188,14 +190,24 @@ void GroundingSpace::match(SpaceAPI const& _pattern, SpaceAPI const& _templ, Gro
 
 // Unify
 
-bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result) {
+// FIXME: depth - is a hack for implementing unification with (= a b)
+// correctly; it should not be implemented here but on the caller level to keep
+// unify_atoms code clean
+bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result, int depth=0) {
     // TODO: it is not clear how should we handle the case when a and b are
     // both variables. We can check variable name equality and skip binding. We
     // can add a as binding for b and vice versa.
     if (b->get_type() == Atom::VARIABLE) {
-        VariableAtomPtr var_b = std::static_pointer_cast<VariableAtom>(b);
-        result.b_bindings[var_b] = a;
-        return true;
+        // FIXME: hardcoding V("X") below is a hack to make work matching for
+        // (= (plus Z $y) $y) and (= (plus Z $n) $X), otherwise $y cannot be
+        // bound to $n and $X at same time, but bounding it to $X doesn't make
+        // sense anyway
+        if (a->get_type() == Atom::VARIABLE && *b != *V("X")) {
+            return add_binding(result.a_bindings, a, b)
+                && add_binding(result.b_bindings, b, a);
+        } else {
+            return add_binding(result.b_bindings, b, a);
+        }
     }
     switch (a->get_type()) {
     case Atom::SYMBOL:
@@ -206,20 +218,20 @@ bool unify_atoms(AtomPtr a, AtomPtr b, UnificationResult& result) {
         result.unifications.emplace_back(a, b);
         return true;
     case Atom::VARIABLE:
-        {
-            VariableAtomPtr var_a = std::static_pointer_cast<VariableAtom>(a);
-            result.a_bindings[var_a] = b;
-            return true;
-        }
+        return add_binding(result.a_bindings, a, b);
     case Atom::EXPR:
         if (b->get_type() == Atom::EXPR) {
             ExprAtomPtr expr_a = std::static_pointer_cast<ExprAtom>(a);
             ExprAtomPtr expr_b = std::static_pointer_cast<ExprAtom>(b);
             if (expr_a->get_children().size() != expr_b->get_children().size()) {
-                return false;
+                if (depth == 1) {
+                    return false;
+                }
+                result.unifications.emplace_back(a, b);
+                return true;
             }
             for (int i = 0; i < expr_a->get_children().size(); ++i) {
-                if (!unify_atoms(expr_a->get_children()[i], expr_b->get_children()[i], result)) {
+                if (!unify_atoms(expr_a->get_children()[i], expr_b->get_children()[i], result, depth+1)) {
                     return false;
                 }
             }
@@ -334,7 +346,15 @@ static ExecutionResult execute_grounded_expression(ExprAtomPtr expr) {
     GroundingSpace args(children);
     LOG_DEBUG << "args: \"" << args.to_string() << "\"" << std::endl;
     GroundingSpace results;
-    func->execute(args, results);
+    try {
+        func->execute(args, results);
+    } catch (...) {
+        // FIXME: we should print the error here, but for doing this we need to
+        // add new type for error; this is the case for
+        // IllegalArgumentExpression analogue
+        LOG_DEBUG << "error while executing expression" << std::endl;
+        return { true, std::vector<AtomPtr>() };
+    }
     LOG_DEBUG << "results: \"" << results.to_string() << "\"" << std::endl;
     return { true, results.get_content() };
 }
@@ -445,22 +465,28 @@ static bool is_plain_expression(ExprAtomPtr expr) {
     return true;
 }
 
-class IfEqAtom : public GroundedAtom {
+class IfMatchAtom : public GroundedAtom {
 public:
-    IfEqAtom() {}
-    virtual ~IfEqAtom() {}
+    IfMatchAtom() {}
+    virtual ~IfMatchAtom() {}
 
     void execute(GroundingSpace const& args, GroundingSpace& result) const override {
-        if (*args.get_content()[1] == *args.get_content()[2]) {
-            result.add_atom(args.get_content()[3]);
+        AtomPtr a = args.get_content()[1];
+        AtomPtr b = args.get_content()[2];
+        MatchBindings match;
+        if (match_atoms(a, b, match)) {
+            AtomPtr c = args.get_content()[3];
+            c = apply_bindings_to_atom(c, match.a_bindings);
+            c = apply_bindings_to_atom(c, match.b_bindings);
+            result.add_atom(c);
         }
     }
 
     bool operator==(Atom const& other) const override { return this == &other; }
-    std::string to_string() const override { return "ifeq"; }
+    std::string to_string() const override { return "ifmatch"; }
 };
 
-const GroundedAtomPtr IFEQ = std::make_shared<IfEqAtom>();
+const GroundedAtomPtr IFMATCH = std::make_shared<IfMatchAtom>();
 
 const SymbolAtomPtr REDUCT = S("reduct");
 // FIXME: make AT symbol more unique
@@ -491,7 +517,7 @@ static AtomPtr reduct_first_arg(ExprAtomPtr expr) {
 static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
     std::vector<AtomPtr> children = expr->get_children();
     auto it = children.begin();
-    bool ifeq = *it == IFEQ;
+    bool ifmatch = *it == IFMATCH;
     while (it != children.end()) {
         if (*it == AT) {
             *it = value;
@@ -499,14 +525,11 @@ static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
         }
         it++;
     }
-    if (ifeq && it == children.begin() + 2) {
-        return E({REDUCT, E(children)});
-    }
     if (it == expr->get_children().end()) {
         throw std::runtime_error("Could not find placeholder to replace by value");
     }
     it++;
-    if (find_next_expr(it, children.end())) {
+    if (find_next_expr(it, children.end()) && (!ifmatch || it <= (children.begin() + 2))) {
         AtomPtr arg = *it;
         *it = AT;
         return E({REDUCT, arg, E(children)});
@@ -520,7 +543,7 @@ static AtomPtr generate_if_eq_recursively(Unifications::const_reverse_iterator i
     if (i == end) {
         return expr;
     }
-    return E({IFEQ, i->a, i->b, generate_if_eq_recursively(i + 1, end, expr)});
+    return E({IFMATCH, i->a, i->b, generate_if_eq_recursively(i + 1, end, expr)});
 }
 
 static AtomPtr unification_result_to_expr(UnificationResult const& unification_result,
