@@ -539,18 +539,18 @@ static AtomPtr reduct_next_arg(ExprAtomPtr expr, AtomPtr value) {
 }
 
 static AtomPtr generate_if_eq_recursively(Unifications::const_reverse_iterator i,
-        Unifications::const_reverse_iterator end, AtomPtr expr) {
+        Unifications::const_reverse_iterator end, AtomPtr value) {
     if (i == end) {
-        return expr;
+        return value;
     }
-    return E({IFMATCH, i->a, i->b, generate_if_eq_recursively(i + 1, end, expr)});
+    return E({IFMATCH, i->a, i->b, generate_if_eq_recursively(i + 1, end, value)});
 }
 
 static AtomPtr unification_result_to_expr(UnificationResult const& unification_result,
         VariableAtomPtr var) {
-    auto expr = unification_result.b_bindings.at(var);
+    auto value = unification_result.b_bindings.at(var);
     auto it = unification_result.unifications.crbegin();
-    return generate_if_eq_recursively(it, unification_result.unifications.crend(), expr);
+    return generate_if_eq_recursively(it, unification_result.unifications.crend(), value);
 }
 
 static AtomPtr interpret_expr_step(GroundingSpace const& kb,
@@ -627,11 +627,11 @@ static AtomPtr interpret_expr_step(GroundingSpace const& kb,
         } else {
             LOG_DEBUG << "adding unification results" << std::endl; 
             for (auto const& result : results) {
-                auto expr = result.b_bindings.find(var);
-                // TODO: the situation when (= ... $X) matched symbol not
-                // expression
-                if (expr != result.b_bindings.end()) {
+                auto value = result.b_bindings.find(var);
+                if (value != result.b_bindings.end()) {
                     callback(unification_result_to_expr(result, var), &result.b_bindings);
+                } else {
+                    throw std::runtime_error("No value for " + var->to_string() + " var");
                 }
             }
             return Atom::INVALID;
