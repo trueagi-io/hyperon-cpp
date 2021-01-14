@@ -134,8 +134,9 @@ class CallAtom(GroundedAtom):
 
     def execute(self, args, result):
         obj = args.get_content()[1].value
+        args = args.get_content()[2:]
         method = getattr(obj, self.method_name)
-        method()
+        method(*args)
 
     def __eq__(self, other):
         if isinstance(other, CallAtom):
@@ -159,6 +160,15 @@ class CommaAtom(GroundedAtom):
 
     def __repr__(self):
         return ","
+
+class AtomspaceAtom(ValueAtom):
+
+    def __init__(self, value, name):
+        ValueAtom.__init__(self, value)
+        self.name = name
+
+    def __repr__(self):
+        return self.name
 
 class Atomese:
 
@@ -189,8 +199,9 @@ class Atomese:
             parser.register_token(regexp, self.tokens[regexp])
         return parser
 
-    def parse(self, program):
-        kb = GroundingSpace()
+    def parse(self, program, kb=None):
+        if not kb:
+            kb = GroundingSpace()
         text = self._parser()
         text.add_string(program)
         kb.add_from_space(text)
