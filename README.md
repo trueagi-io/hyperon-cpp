@@ -11,3 +11,10 @@ cmake ..
 make
 make test
 ```
+
+# CircleCI docker
+
+```
+cd .circleci
+docker build -t vsbogd/hyperon-ci .
+```
