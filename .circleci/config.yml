@@ -1,0 +1,15 @@
+jobs:
+  build:
+    docker:
+      - image: vsbogd/hyperon-ci:latest
+    steps:
+      - checkout
+      - run:
+        name: build C++
+        command: |
+          conda activate hyperon
+          mkdir build
+          cd build
+          cmake ..
+          make
+          make check
