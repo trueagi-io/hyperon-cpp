@@ -5,11 +5,11 @@ jobs:
     steps:
       - checkout
       - run:
-        name: build C++
-        command: |
-          conda activate hyperon
-          mkdir build
-          cd build
-          cmake ..
-          make
-          make check
+          name: build C++
+          command: |
+            conda activate hyperon
+            mkdir build
+            cd build
+            cmake ..
+            make
+            make check
