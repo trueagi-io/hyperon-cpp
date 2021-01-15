@@ -21,3 +21,4 @@ RUN sudo apt-get update && \
     cxxtest \
     && sudo rm -rf /var/lib/apt/lists/*
 
+RUN rm -rf .empty
