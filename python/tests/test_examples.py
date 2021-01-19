@@ -207,6 +207,9 @@ class ExamplesTest(unittest.TestCase):
         kb = GroundingSpace()
         atomese.add_atom("kb", AtomspaceAtom(kb, "kb"))
 
+        # it's questionable if the representation of (health-check Kim)
+        # which can be interpreted as a functional call is correct,
+        # but these tests pass for now
         program = '''
             (= (perform (visit $x)) (perform (lunch-order $x)))
             (= (perform (visit $x)) (perform (health-check $x)))
@@ -216,21 +219,45 @@ class ExamplesTest(unittest.TestCase):
 
             (= (achieve $goal)
                (match kb (impl (is-achieved $goal)
-                            (And (is-achieved $subgoal1) (is-achieved $subgoal2)))
+                               (And (is-achieved $subgoal1) (is-achieved $subgoal2)))
                       (do $subgoal1 $subgoal2)))
 
             (= (achieve (health-check Kim)) True)
-            (= (achieve (lunch-order Kim)) True)
+            (= (achieve (lunch-order Kim)) False)
             '''
         # (do $subgoal1 $subgoal2) --> (do (achieve $subgoal1) (achieve $subgoal2)))) --
         # -- will try to execute 'achieve' and produce (do True True) as output...
+
         atomese.parse(program, kb)
 
-        #target = atomese.parse('(perform (visit Kim))') #-- simple functional way to produce subgoals in target
-        target = atomese.parse('(achieve (visit Kim))') #will substituting Kim work??
-
+        # simple functional way to produce subgoals in target
+        target = atomese.parse('(perform (visit Kim))')
         result = interpret_until_result(target, kb)
-        self.assertEqual(repr(result), "(do (lunch-order Kim) (health-check Kim))")
+        # returned now as output because there is no further interpretation of this expression
+        # it could be expanded further into subgoals or external actions
+        self.assertEqual(repr(result), '(perform (health-check Kim))')
+        # the next subgoal is produced in the consequent interpretation of the initial
+        # nondeterministic expression
+        result = interpret_until_result(target, kb)
+        self.assertEqual(repr(result), '(perform (lunch-order Kim))')
+
+        # Higher-order matching:
+        # (visit Kim) -> $goal in (achieve $goal)
+        # Kim -> $x in (impl (is-achieved (visit $x)) ...
+        # $subgoal[1,2] <- (is-achieved ([lunch-order, health-check] Kim))
+        # checking if such two-side unification works:
+        target = atomese.parse('(achieve (visit Kim))')
+        result = interpret_until_result(target, kb)
+        self.assertEqual(repr(result), '(do (lunch-order Kim) (health-check Kim))')
+
+        # Extending the program
+        atomese.parse('(= (do $goal1 $goal2) (achieve $goal1))', kb)
+        atomese.parse('(= (do $goal1 $goal2) (achieve $goal2))', kb)
+        target = atomese.parse('(achieve (visit Kim))')
+        # (achieve (visit Kim)) --> (do (lunch-order Kim) (health-check Kim))
+        # --> (achieve (health-check Kim)) ... --> True
+        result = interpret_until_result(target, kb)
+        self.assertEqual(repr(result), 'True')
 
 class SomeObject():
 
