@@ -16,5 +16,5 @@ make test
 
 ```
 cd .circleci
-docker build -t vsbogd/hyperon-ci .
+docker build -t trueagi/hyperon-ci .
 ```
