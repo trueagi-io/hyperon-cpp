@@ -12,6 +12,20 @@ make
 make test
 ```
 
+# Installation
+
+After building the library it can be installed to the system using the commands:
+```
+cd build
+sudo make install
+sudo ldconfig
+``
+
+The following command can be used to check if the library is installed successfully:
+```
+python -c "import hyperon"
+```
+
 # CircleCI docker
 
 ```
