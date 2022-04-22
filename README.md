@@ -1,3 +1,5 @@
+This repo is outdated, the prototype is rewritten from scratch in a Rust programming languge, see [new repository](https://github.com/trueagi-io/hyperon-experimental).
+
 # How to build
 
 ```
